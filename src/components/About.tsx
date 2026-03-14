@@ -37,7 +37,7 @@ export const About: React.FC = () => {
                 </div>
 
                 <a
-                    href="https://github.com/ksrahul23/realtime-music-app"
+                    href="https://github.com/ksrahul23/AudioArc-Music-Player"
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center justify-between bg-sheet-bg backdrop-blur-md rounded-2xl p-4 border border-border-color shadow-sm hover:shadow-md transition-all active:scale-95"

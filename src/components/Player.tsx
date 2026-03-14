@@ -142,7 +142,7 @@ export const Player: React.FC = () => {
             </div>
 
             {/* Playback Controls */}
-            <div className="w-full flex items-center justify-between px-2 relative">
+            <div className="w-full flex items-center justify-between px-1 relative">
 
                 {/* Settings Menu Button & Popup */}
                 <div className="relative">
@@ -161,7 +161,7 @@ export const Player: React.FC = () => {
                                     <Maximize size={18} className="text-text-muted" />
                                     <span className="text-sm font-medium">Fullscreen</span>
                                 </button>
-                                <a href="https://github.com/ksrahul23/realtime-music-app" target="_blank" rel="noreferrer" onClick={() => setShowSettings(false)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                                <a href="https://github.com/ksrahul23/AudioArc-Music-Player" target="_blank" rel="noreferrer" onClick={() => setShowSettings(false)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                                     <Github size={18} className="text-text-muted" />
                                     <span className="text-sm font-medium">GitHub Repo</span>
                                 </a>
@@ -174,36 +174,36 @@ export const Player: React.FC = () => {
                     )}
                 </div>
 
-                <div className="flex flex-col items-center gap-2">
-                    <div className="flex items-center gap-2 sm:gap-4 relative">
+                <div className="flex flex-col items-center gap-2 px-2 sm:px-4">
+                    <div className="flex items-center gap-1.5 sm:gap-4 relative">
                         <button
                             onClick={() => handleSeek(-10)}
-                            className={`transition-all text-xs font-bold flex flex-col items-center ${activeKey === 'left' ? 'text-text-primary scale-110 opacity-100' : 'text-text-muted hover:text-text-primary opacity-60'}`}
+                            className={`transition-all text-[10px] sm:text-xs font-bold flex flex-col items-center mr-1 sm:mr-2 ${activeKey === 'left' ? 'text-text-primary scale-110 opacity-100' : 'text-text-muted hover:text-text-primary opacity-60'}`}
                         >
-                            <Rewind size={20} />
+                            <Rewind size={18} />
                             -10s
                         </button>
 
-                        <button onClick={playPrevious} className="p-2 sm:p-3 text-text-primary hover:text-accent-color transition-colors bg-white/10 dark:bg-black/30 rounded-2xl ml-2">
+                        <button onClick={playPrevious} className="p-2 sm:p-3 text-text-primary hover:text-accent-color transition-colors bg-white/10 dark:bg-black/30 rounded-2xl">
                             <SkipBack size={24} fill="currentColor" />
                         </button>
 
                         <button
                             onClick={() => setIsPlaying(!isPlaying)}
-                            className="w-16 h-16 flex items-center justify-center bg-accent-color text-white rounded-[24px] shadow-lg hover:scale-105 active:scale-95 transition-all mx-2"
+                            className="w-16 h-16 flex items-center justify-center bg-accent-color text-white rounded-[24px] shadow-lg hover:scale-105 active:scale-95 transition-all mx-2 sm:mx-4"
                         >
                             {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
                         </button>
 
-                        <button onClick={playNext} className="p-2 sm:p-3 text-text-primary hover:text-accent-color transition-colors bg-white/10 dark:bg-black/30 rounded-2xl mr-2">
+                        <button onClick={playNext} className="p-2 sm:p-3 text-text-primary hover:text-accent-color transition-colors bg-white/10 dark:bg-black/30 rounded-2xl">
                             <SkipForward size={24} fill="currentColor" />
                         </button>
 
                         <button
                             onClick={() => handleSeek(10)}
-                            className={`transition-all text-xs font-bold flex flex-col items-center ${activeKey === 'right' ? 'text-text-primary scale-110 opacity-100' : 'text-text-muted hover:text-text-primary opacity-60'}`}
+                            className={`transition-all text-[10px] sm:text-xs font-bold flex flex-col items-center ml-1 sm:ml-2 ${activeKey === 'right' ? 'text-text-primary scale-110 opacity-100' : 'text-text-muted hover:text-text-primary opacity-60'}`}
                         >
-                            <FastForward size={20} />
+                            <FastForward size={18} />
                             +10s
                         </button>
                     </div>
