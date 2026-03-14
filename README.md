@@ -6,7 +6,7 @@ AudioArc is a premium, full-stack music streaming application designed for a sea
 
 The project is structured into two main components: a high-performance Python backend and a responsive React frontend.
 
-### 🌐 Backend (`/api`)
+### 🌐 Backend (`/backend`)
 A FastAPI-powered service that interfaces with YouTube for real-time music discovery.
 - **Tech Stack**: FastAPI, Python 3.10+, `yt-dlp`.
 - **Key Features**:
@@ -41,7 +41,7 @@ npm run dev:all
 Alternatively, you can run them separately:
 #### Backend
 ```bash
-cd api
+cd backend
 python -m venv venv
 source venv/bin/activate  # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
@@ -63,15 +63,21 @@ If you close your local server, search will fail by default. To "get over this",
 
 This project is configured for seamless deployment on Vercel.
 
-1. **Backend**: The FastAPI backend is handled as Serverless Functions via the `vercel.json` configuration.
-2. **Frontend**: The React frontend is automatically built and served.
-3. **API Routing**: All requests to `/api/*` are routed to the Python backend.
+1. **Backend**: Dispatched to **Render** as a Web Service.
+2. **Frontend**: The React frontend is automatically built and served on **Vercel**.
+3. **API Routing**: The frontend is configured via `.env` to point to the Render backend URL.
 
-### Prerequisites for Vercel
-- Ensure you have a `requirements.txt` in the `api/` directory (already included).
-- The `vercel.json` at the root handles the routing and runtime configuration.
+### 🚀 Deploying Backend to Render
+1. Create a new **Web Service** on Render.
+2. Connect your GitHub repository.
+3. Set **Root Directory** to `backend`.
+4. Set **Runtime** to `Python 3`.
+5. Set **Build Command** to `pip install -r requirements.txt`.
+6. Set **Start Command** to `uvicorn main:app --host 0.0.0.0 --port $PORT`.
 
-To deploy, simply push your changes to your GitHub repository and link it to a new project in the Vercel Dashboard.
+### 🌐 Deploying Frontend to Vercel
+1. Link your GitHub repository to a new project in the Vercel Dashboard.
+2. Add an environment variable: `VITE_API_URL=https://your-render-app-url.onrender.com`.
 
 ## ✍️ Author
 **Rahul Kumar**
