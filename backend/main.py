@@ -21,30 +21,63 @@ async def get_piped_stream(video_id: str):
     piped_instances = [
         "https://pipedapi.kavin.rocks",
         "https://pipedapi.leptons.xyz",
-        "https://api.piped.victr.me"
+        "https://pipedapi.adminforge.de",
+        "https://pipedapi.astartes.rocks",
+        "https://piped-api.lunar.icu",
+        "https://api-piped.mha.fi"
     ]
     
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=15.0) as client:
         for instance in piped_instances:
             try:
+                print(f"Trying Piped fallback: {instance}")
                 response = await client.get(f"{instance}/streams/{video_id}")
                 if response.status_code == 200:
                     data = response.json()
-                    # Prefer audio streams
+                    # Prefer audio-only streams
                     audio_streams = data.get("audioStreams", [])
                     if audio_streams:
-                        # Sort by quality/bitrate
+                        # Sort by bitrate
                         audio_streams.sort(key=lambda x: x.get("bitrate", 0), reverse=True)
                         return audio_streams[0]["url"]
-                    # If no audio-only, check video/audio combined
-                    elif data.get("hls"):
+                    # Fallback to HLS
+                    if data.get("hls"):
                         return data["hls"]
             except Exception as e:
                 print(f"Piped instance {instance} failed: {str(e)}")
                 continue
     return None
 
-def search_youtube(query: str, max_results: int = 15):
+async def piped_search_fallback(query: str):
+    piped_instances = [
+        "https://pipedapi.kavin.rocks",
+        "https://pipedapi.leptons.xyz",
+        "https://pipedapi.adminforge.de"
+    ]
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for instance in piped_instances:
+            try:
+                print(f"Trying Piped search fallback: {instance}")
+                response = await client.get(f"{instance}/search", params={"q": query, "filter": "music_songs"})
+                if response.status_code == 200:
+                    data = response.json()
+                    songs = []
+                    for item in data.get("items", []):
+                        if item.get("type") == "stream":
+                            songs.append({
+                                "videoId": item.get("url", "").split("=")[-1],
+                                "title": item.get("title", ""),
+                                "artist": item.get("uploaderName", "Unknown Artist"),
+                                "thumbnail": item.get("thumbnail", ""),
+                                "duration": item.get("duration", 0),
+                            })
+                    return songs
+            except Exception as e:
+                 print(f"Piped search failed on {instance}: {str(e)}")
+                 continue
+    return []
+
+async def search_youtube_smart(query: str, max_results: int = 15):
     ydl_opts = {
         'format': 'bestaudio/best',
         'noplaylist': True,
@@ -61,29 +94,30 @@ def search_youtube(query: str, max_results: int = 15):
         }
     }
     
-    # Cookie support: Look for cookies.txt in the backend folder
     if os.path.exists("cookies.txt"):
         ydl_opts['cookiefile'] = "cookies.txt"
         print("Using cookies.txt for search")
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
-            result = ydl.extract_info(f"ytsearch{max_results}:{query}", download=False)
-            if 'entries' in result:
-                songs = []
-                for entry in result['entries']:
-                    songs.append({
-                        "videoId": entry.get("id"),
-                        "title": entry.get("title", ""),
-                        "artist": entry.get("uploader", "Unknown Artist"),
-                        "thumbnail": entry.get("thumbnails", [{"url": ""}])[0].get("url") if entry.get("thumbnails") else "",
-                        "duration": entry.get("duration", 0),
-                    })
-                return songs
-            return []
-        except Exception as e:
-            print(f"yt-dlp search failed: {str(e)}")
-            raise Exception(f"Failed to search: {str(e)}")
+    try:
+        # Try yt-dlp search first
+        print(f"Attempting yt-dlp search for: {query}")
+        result = await asyncio.to_thread(lambda: yt_dlp.YoutubeDL(ydl_opts).extract_info(f"ytsearch{max_results}:{query}", download=False))
+        if 'entries' in result:
+            songs = []
+            for entry in result['entries']:
+                songs.append({
+                    "videoId": entry.get("id"),
+                    "title": entry.get("title", ""),
+                    "artist": entry.get("uploader", "Unknown Artist"),
+                    "thumbnail": entry.get("thumbnails", [{"url": ""}])[0].get("url") if entry.get("thumbnails") else "",
+                    "duration": entry.get("duration", 0),
+                })
+            return songs
+    except Exception as e:
+        print(f"yt-dlp search failed: {str(e)}. Falling back to Piped...")
+        return await piped_search_fallback(query)
+    
+    return []
 
 async def get_stream_url(video_id: str):
     ydl_opts = {
@@ -144,7 +178,7 @@ async def get_stream_url(video_id: str):
 @app.get("/api/search")
 async def search(q: str = Query(..., min_length=1)):
     try:
-        results = await asyncio.to_thread(search_youtube, q)
+        results = await search_youtube_smart(q)
         return {"results": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
