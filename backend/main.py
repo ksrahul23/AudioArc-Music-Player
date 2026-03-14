@@ -25,7 +25,7 @@ def search_youtube(query: str, max_results: int = 15):
         'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'android', 'web'],
+                'player_client': ['tv', 'web_embedded', 'android'],
                 'skip': ['hls', 'dash']
             }
         }
@@ -56,7 +56,7 @@ def get_stream_url(video_id: str):
         'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'android', 'web'],
+                'player_client': ['tv', 'web_embedded', 'android'],
                 'skip': ['hls', 'dash']
             }
         }
@@ -70,9 +70,12 @@ def get_stream_url(video_id: str):
             
             # Try to get the direct URL from formats if not in root
             if 'url' not in info and 'formats' in info:
-                for f in info['formats']:
-                    if f.get('acodec') != 'none' and f.get('vcodec') == 'none':
-                        return f['url']
+                # Prefer M4A for better compatibility
+                audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
+                if audio_formats:
+                    # Sort by quality
+                    audio_formats.sort(key=lambda x: x.get('abr', 0), reverse=True)
+                    return audio_formats[0]['url']
             
             if 'url' not in info:
                  raise Exception("No stream URL found in info")
