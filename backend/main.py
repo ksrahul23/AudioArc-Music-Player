@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import yt_dlp
 import asyncio
+import httpx
+import os
 
 app = FastAPI(title="Realtime Music App API")
 
@@ -13,6 +15,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Helper for Piped API Fallback
+async def get_piped_stream(video_id: str):
+    piped_instances = [
+        "https://pipedapi.kavin.rocks",
+        "https://pipedapi.leptons.xyz",
+        "https://api.piped.victr.me"
+    ]
+    
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for instance in piped_instances:
+            try:
+                response = await client.get(f"{instance}/streams/{video_id}")
+                if response.status_code == 200:
+                    data = response.json()
+                    # Prefer audio streams
+                    audio_streams = data.get("audioStreams", [])
+                    if audio_streams:
+                        # Sort by quality/bitrate
+                        audio_streams.sort(key=lambda x: x.get("bitrate", 0), reverse=True)
+                        return audio_streams[0]["url"]
+                    # If no audio-only, check video/audio combined
+                    elif data.get("hls"):
+                        return data["hls"]
+            except Exception as e:
+                print(f"Piped instance {instance} failed: {str(e)}")
+                continue
+    return None
 
 def search_youtube(query: str, max_results: int = 15):
     ydl_opts = {
@@ -30,6 +60,12 @@ def search_youtube(query: str, max_results: int = 15):
             }
         }
     }
+    
+    # Cookie support: Look for cookies.txt in the backend folder
+    if os.path.exists("cookies.txt"):
+        ydl_opts['cookiefile'] = "cookies.txt"
+        print("Using cookies.txt for search")
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
             result = ydl.extract_info(f"ytsearch{max_results}:{query}", download=False)
@@ -46,9 +82,10 @@ def search_youtube(query: str, max_results: int = 15):
                 return songs
             return []
         except Exception as e:
+            print(f"yt-dlp search failed: {str(e)}")
             raise Exception(f"Failed to search: {str(e)}")
 
-def get_stream_url(video_id: str):
+async def get_stream_url(video_id: str):
     ydl_opts = {
         'format': 'bestaudio/best',
         'quiet': True,
@@ -61,28 +98,48 @@ def get_stream_url(video_id: str):
             }
         }
     }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
-            # Use full URL for better extraction reliability
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-            print(f"Extracting stream for: {video_url}")
-            info = ydl.extract_info(video_url, download=False)
+
+    # Cookie support: Look for cookies.txt in the backend folder
+    if os.path.exists("cookies.txt"):
+        ydl_opts['cookiefile'] = "cookies.txt"
+        print("Using cookies.txt for stream extraction")
+
+    try:
+        # 1. Try yt-dlp first
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        print(f"Attempting yt-dlp extraction for: {video_url}")
+        
+        # Run yt-dlp in a thread to keep FastAPI responsive
+        info = await asyncio.to_thread(lambda: yt_dlp.YoutubeDL(ydl_opts).extract_info(video_url, download=False))
+        
+        # Try to get the direct URL from formats if not in root
+        if 'url' not in info and 'formats' in info:
+            audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
+            if audio_formats:
+                audio_formats.sort(key=lambda x: x.get('abr', 0), reverse=True)
+                return audio_formats[0]['url']
+        
+        if 'url' in info:
+             return info['url']
+             
+    except Exception as e:
+        error_msg = str(e)
+        print(f"yt-dlp extraction failed: {error_msg}")
+        
+        # 2. If it's a "Bot/Sign in" error, trigger Piped Fallback
+        if "confirm you're not a bot" in error_msg or "Sign in" in error_msg or "403" in error_msg:
+            print("Triggering Piped API fallback...")
+            piped_url = await get_piped_stream(video_id)
+            if piped_url:
+                print("Piped fallback successful!")
+                return piped_url
             
-            # Try to get the direct URL from formats if not in root
-            if 'url' not in info and 'formats' in info:
-                # Prefer M4A for better compatibility
-                audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
-                if audio_formats:
-                    # Sort by quality
-                    audio_formats.sort(key=lambda x: x.get('abr', 0), reverse=True)
-                    return audio_formats[0]['url']
-            
-            if 'url' not in info:
-                 raise Exception("No stream URL found in info")
-            return info['url']
-        except Exception as e:
-            print(f"Extraction failed: {str(e)}")
-            raise Exception(f"Failed to get stream: {str(e)}")
+    # Final check: try Piped anyway if yt-dlp didn't return a URL
+    piped_url = await get_piped_stream(video_id)
+    if piped_url:
+        return piped_url
+        
+    raise Exception("All stream extraction methods failed.")
 
 @app.get("/api/search")
 async def search(q: str = Query(..., min_length=1)):
@@ -95,7 +152,7 @@ async def search(q: str = Query(..., min_length=1)):
 @app.get("/api/stream")
 async def stream(videoId: str = Query(..., min_length=1)):
     try:
-        url = await asyncio.to_thread(get_stream_url, videoId)
+        url = await get_stream_url(videoId)
         return {"url": url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
