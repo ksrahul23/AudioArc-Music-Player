@@ -48,7 +48,7 @@ function App() {
               <Player />
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-text-muted px-6 text-center">
-                <img src="/logo.png" alt="Logo" className="w-32 h-32 mb-6 opacity-80" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <img src="/6d6995ce9ab543205bd05c224c95db2c.svg" alt="Logo" className="w-32 h-32 mb-6 opacity-80" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 <h2 className="text-2xl font-bold mb-2 text-text-primary">Discover Music</h2>
                 <p>Search for a song, artist, or album to start streaming.</p>
               </div>
