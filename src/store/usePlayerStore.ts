@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { API_BASE_URL } from '../config';
 
 export interface Track {
     videoId: string;
@@ -120,7 +121,7 @@ export const usePlayerStore = create<PlayerState>()(
             searchTracks: async (query: string) => {
                 set({ isSearching: true, isSheetOpen: true, searchError: null });
                 try {
-                    const res = await fetch(`http://localhost:8000/api/search?q=${encodeURIComponent(query)}`);
+                    const res = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
                     if (!res.ok) {
                         const errData = await res.json().catch(() => ({}));
                         throw new Error(errData.detail || `Server error: ${res.status}`);

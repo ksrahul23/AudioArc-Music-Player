@@ -47,5 +47,19 @@ npm install
 npm run dev
 ```
 
+## 🌐 Deployment on Vercel
+
+This project is configured for seamless deployment on Vercel.
+
+1. **Backend**: The FastAPI backend is handled as Serverless Functions via the `vercel.json` configuration.
+2. **Frontend**: The React frontend is automatically built and served.
+3. **API Routing**: All requests to `/api/*` are routed to the Python backend.
+
+### Prerequisites for Vercel
+- Ensure you have a `requirements.txt` in the `backend/` directory (already included).
+- The `vercel.json` at the root handles the routing and runtime configuration.
+
+To deploy, simply push your changes to your GitHub repository and link it to a new project in the Vercel Dashboard.
+
 ## ✍️ Author
 **Rahul Kumar**

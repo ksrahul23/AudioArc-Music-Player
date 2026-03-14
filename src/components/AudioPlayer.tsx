@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { API_BASE_URL } from '../config';
 
 export const AudioPlayer: React.FC = () => {
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -12,7 +13,7 @@ export const AudioPlayer: React.FC = () => {
 
         const fetchStream = async () => {
             try {
-                const response = await fetch(`http://localhost:8000/api/stream?videoId=${currentTrack.videoId}`);
+                const response = await fetch(`${API_BASE_URL}/stream?videoId=${currentTrack.videoId}`);
                 if (!response.ok) throw new Error("Failed to fetch stream");
                 const data = await response.json();
                 if (active) {
