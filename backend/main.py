@@ -7,6 +7,16 @@ import os
 
 app = FastAPI(title="Realtime Music App API")
 
+# Startup: Write cookies from environment variable if provided
+@app.on_event("startup")
+async def startup_event():
+    cookies_content = os.getenv("YT_COOKIES")
+    if cookies_content:
+        cookie_path = os.path.join(os.path.dirname(__file__), "cookies.txt")
+        with open(cookie_path, "w") as f:
+            f.write(cookies_content)
+        print(f"Successfully wrote cookies to {cookie_path}")
+
 # Allow CORS for the frontend
 app.add_middleware(
     CORSMiddleware,
