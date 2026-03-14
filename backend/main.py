@@ -11,11 +11,20 @@ app = FastAPI(title="Realtime Music App API")
 @app.on_event("startup")
 async def startup_event():
     cookies_content = os.getenv("YT_COOKIES")
+    cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+    
     if cookies_content:
-        cookie_path = os.path.join(os.path.dirname(__file__), "cookies.txt")
+        # Basic cleanup in case it was pasted with quotes or has weird formatting
+        cookies_content = cookies_content.strip()
+        if cookies_content.startswith('"') and cookies_content.endswith('"'):
+             cookies_content = cookies_content[1:-1]
+             
         with open(cookie_path, "w") as f:
             f.write(cookies_content)
-        print(f"Successfully wrote cookies to {cookie_path}")
+        print(f"✅ Successfully wrote cookies to {cookie_path}")
+        print(f"📄 Cookie file size: {os.path.getsize(cookie_path)} bytes")
+    else:
+        print("ℹ️ No YT_COOKIES environment variable found.")
 
 # Allow CORS for the frontend
 app.add_middleware(
@@ -89,6 +98,7 @@ async def piped_search_fallback(query: str):
     return []
 
 async def search_youtube_smart(query: str, max_results: int = 15):
+    cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
     ydl_opts = {
         'format': 'bestaudio/best',
         'noplaylist': True,
@@ -105,9 +115,9 @@ async def search_youtube_smart(query: str, max_results: int = 15):
         }
     }
     
-    if os.path.exists("cookies.txt"):
-        ydl_opts['cookiefile'] = "cookies.txt"
-        print("Using cookies.txt for search")
+    if os.path.exists(cookie_path):
+        ydl_opts['cookiefile'] = cookie_path
+        print(f"🔍 Using cookies for search: {cookie_path}")
 
     try:
         # Try yt-dlp search first
@@ -125,12 +135,13 @@ async def search_youtube_smart(query: str, max_results: int = 15):
                 })
             return songs
     except Exception as e:
-        print(f"yt-dlp search failed: {str(e)}. Falling back to Piped...")
+        print(f"❌ yt-dlp search failed: {str(e)}. Falling back to Piped...")
         return await piped_search_fallback(query)
     
     return []
 
 async def get_stream_url(video_id: str):
+    cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
     ydl_opts = {
         'format': 'bestaudio/best',
         'quiet': True,
@@ -145,10 +156,11 @@ async def get_stream_url(video_id: str):
     }
 
     # Cookie support: Look for cookies.txt in the same folder as main.py
-    cookie_path = os.path.join(os.path.dirname(__file__), "cookies.txt")
     if os.path.exists(cookie_path):
         ydl_opts['cookiefile'] = cookie_path
-        print(f"Using cookies from: {cookie_path}")
+        print(f"🎵 Using cookies for stream extraction: {cookie_path}")
+    else:
+        print(f"⚠️ Warning: No cookies found at {cookie_path}")
 
     try:
         # 1. Try yt-dlp first
