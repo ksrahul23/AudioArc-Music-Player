@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #e0f2fe;
+    /* light blue */
+    --text-primary: #171717;
+    /* Dark text */
+    --text-muted: #475569;
+    --accent-color: #22c55e;
+    /* green */
+    --sheet-bg: rgba(255, 255, 255, 0.85);
+    --border-color: rgba(0, 0, 0, 0.1);
+    --color-brand-light: #e0f2fe;
+    /* light blue */
+    --color-brand-dark: #121212;
+    /* deep grey/black */
+  }
+
+  /* Dark theme */
+  html.dark {
+    --bg-primary: #121212;
+    /* Deep grey/black */
+    --text-primary: #f5f5f5;
+    /* Light text */
+    --text-muted: #a3a3a3;
+    --accent-color: #f43f5e;
+    --sheet-bg: rgba(30, 30, 30, 0.85);
+    --border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+    /* Mobile app feel, prevent bouncy scroll on body */
+    touch-action: none;
+  }
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+}
