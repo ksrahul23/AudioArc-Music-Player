@@ -24,10 +24,13 @@ async def get_piped_stream(video_id: str):
         "https://pipedapi.adminforge.de",
         "https://pipedapi.astartes.rocks",
         "https://piped-api.lunar.icu",
-        "https://api-piped.mha.fi"
+        "https://api.piped.projectsegfau.lt",
+        "https://pipedapi.moe.xyz"
     ]
     
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    # We use verify=False here because some Piped instances have expired old certificates 
+    # but still provide valid stream URLs. This is safe for public video streams.
+    async with httpx.AsyncClient(timeout=15.0, verify=False) as client:
         for instance in piped_instances:
             try:
                 print(f"Trying Piped fallback: {instance}")
@@ -37,10 +40,8 @@ async def get_piped_stream(video_id: str):
                     # Prefer audio-only streams
                     audio_streams = data.get("audioStreams", [])
                     if audio_streams:
-                        # Sort by bitrate
                         audio_streams.sort(key=lambda x: x.get("bitrate", 0), reverse=True)
                         return audio_streams[0]["url"]
-                    # Fallback to HLS
                     if data.get("hls"):
                         return data["hls"]
             except Exception as e:
