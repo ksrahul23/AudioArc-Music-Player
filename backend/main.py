@@ -17,11 +17,18 @@ app.add_middleware(
 def search_youtube(query: str, max_results: int = 15):
     ydl_opts = {
         'format': 'bestaudio/best',
+        'noplaylist': True,
+        'extract_flat': 'in_playlist',
+        'default_search': 'ytsearch',
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
-        'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
-        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['ios', 'android', 'web'],
+                'skip': ['hls', 'dash']
+            }
+        }
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
@@ -47,8 +54,12 @@ def get_stream_url(video_id: str):
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
-        'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
-        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['ios', 'android', 'web'],
+                'skip': ['hls', 'dash']
+            }
+        }
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
@@ -56,6 +67,13 @@ def get_stream_url(video_id: str):
             video_url = f"https://www.youtube.com/watch?v={video_id}"
             print(f"Extracting stream for: {video_url}")
             info = ydl.extract_info(video_url, download=False)
+            
+            # Try to get the direct URL from formats if not in root
+            if 'url' not in info and 'formats' in info:
+                for f in info['formats']:
+                    if f.get('acodec') != 'none' and f.get('vcodec') == 'none':
+                        return f['url']
+            
             if 'url' not in info:
                  raise Exception("No stream URL found in info")
             return info['url']
