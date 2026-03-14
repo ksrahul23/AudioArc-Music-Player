@@ -6,7 +6,7 @@ AudioArc is a premium, full-stack music streaming application designed for a sea
 
 The project is structured into two main components: a high-performance Python backend and a responsive React frontend.
 
-### 🌐 Backend (`/backend`)
+### 🌐 Backend (`/api`)
 A FastAPI-powered service that interfaces with YouTube for real-time music discovery.
 - **Tech Stack**: FastAPI, Python 3.10+, `yt-dlp`.
 - **Key Features**:
@@ -41,7 +41,7 @@ npm run dev:all
 Alternatively, you can run them separately:
 #### Backend
 ```bash
-cd backend
+cd api
 python -m venv venv
 source venv/bin/activate  # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
@@ -68,7 +68,7 @@ This project is configured for seamless deployment on Vercel.
 3. **API Routing**: All requests to `/api/*` are routed to the Python backend.
 
 ### Prerequisites for Vercel
-- Ensure you have a `requirements.txt` in the `backend/` directory (already included).
+- Ensure you have a `requirements.txt` in the `api/` directory (already included).
 - The `vercel.json` at the root handles the routing and runtime configuration.
 
 To deploy, simply push your changes to your GitHub repository and link it to a new project in the Vercel Dashboard.
