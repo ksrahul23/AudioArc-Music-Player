@@ -16,6 +16,7 @@ export const AudioPlayer: React.FC = () => {
                 const response = await fetch(`${API_BASE_URL}/stream?videoId=${currentTrack.videoId}`);
                 if (!response.ok) throw new Error("Failed to fetch stream");
                 const data = await response.json();
+                console.log("Fetched stream URL:", data.url);
                 if (active) {
                     setStreamUrl(data.url);
                     setIsPlaying(true);

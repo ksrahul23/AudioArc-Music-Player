@@ -17,10 +17,11 @@ app.add_middleware(
 def search_youtube(query: str, max_results: int = 15):
     ydl_opts = {
         'format': 'bestaudio/best',
-        'noplaylist': True,
-        'extract_flat': True,
-        'default_search': 'ytsearch',
         'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
@@ -45,12 +46,21 @@ def get_stream_url(video_id: str):
         'format': 'bestaudio/best',
         'quiet': True,
         'no_warnings': True,
+        'nocheckcertificate': True,
+        'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
-            info = ydl.extract_info(video_id, download=False)
+            # Use full URL for better extraction reliability
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            print(f"Extracting stream for: {video_url}")
+            info = ydl.extract_info(video_url, download=False)
+            if 'url' not in info:
+                 raise Exception("No stream URL found in info")
             return info['url']
         except Exception as e:
+            print(f"Extraction failed: {str(e)}")
             raise Exception(f"Failed to get stream: {str(e)}")
 
 @app.get("/api/search")
