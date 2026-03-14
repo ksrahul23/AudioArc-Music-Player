@@ -7,24 +7,43 @@ import os
 
 app = FastAPI(title="Realtime Music App API")
 
-# Startup: Write cookies from environment variable if provided
-@app.on_event("startup")
-async def startup_event():
+# Helper to ensure cookies are present
+def ensure_cookies():
     cookies_content = os.getenv("YT_COOKIES")
-    cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+    # Try multiple paths for reliability in cloud environments
+    paths_to_try = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt"),
+        "/tmp/cookies.txt",
+        "cookies.txt"
+    ]
     
-    if cookies_content:
-        # Basic cleanup in case it was pasted with quotes or has weird formatting
-        cookies_content = cookies_content.strip()
-        if cookies_content.startswith('"') and cookies_content.endswith('"'):
-             cookies_content = cookies_content[1:-1]
-             
-        with open(cookie_path, "w") as f:
-            f.write(cookies_content)
-        print(f"✅ Successfully wrote cookies to {cookie_path}")
-        print(f"📄 Cookie file size: {os.path.getsize(cookie_path)} bytes")
-    else:
-        print("ℹ️ No YT_COOKIES environment variable found.")
+    selected_path = paths_to_try[0]
+    
+    if not cookies_content:
+        print("ℹ️ Diagnostics: YT_COOKIES environment variable is EMPTY or NOT SET.")
+        # Check if file already exists from a previous run or git
+        for p in paths_to_try:
+            if os.path.exists(p):
+                return p
+        return None
+
+    # Cleanup and verify format
+    cookies_content = cookies_content.strip().strip('"').strip("'")
+    if not cookies_content.startswith("#"):
+        print("⚠️ Diagnostics: YT_COOKIES does not start with # (Netscape format). Please check your export!")
+
+    # Write to the first writable path
+    for p in paths_to_try:
+        try:
+            with open(p, "w") as f:
+                f.write(cookies_content)
+            print(f"✅ Diagnostics: Successfully wrote cookies to {p} ({len(cookies_content)} bytes)")
+            return p
+        except Exception as e:
+            print(f"❌ Diagnostics: Failed to write to {p}: {str(e)}")
+            continue
+            
+    return None
 
 # Allow CORS for the frontend
 app.add_middleware(
@@ -41,14 +60,12 @@ async def get_piped_stream(video_id: str):
         "https://pipedapi.kavin.rocks",
         "https://pipedapi.leptons.xyz",
         "https://pipedapi.adminforge.de",
-        "https://pipedapi.astartes.rocks",
         "https://piped-api.lunar.icu",
         "https://api.piped.projectsegfau.lt",
-        "https://pipedapi.moe.xyz"
+        "https://pipedapi.moe.xyz",
+        "https://pipedapi.rammer.pw"
     ]
     
-    # We use verify=False here because some Piped instances have expired old certificates 
-    # but still provide valid stream URLs. This is safe for public video streams.
     async with httpx.AsyncClient(timeout=15.0, verify=False) as client:
         for instance in piped_instances:
             try:
@@ -56,7 +73,6 @@ async def get_piped_stream(video_id: str):
                 response = await client.get(f"{instance}/streams/{video_id}")
                 if response.status_code == 200:
                     data = response.json()
-                    # Prefer audio-only streams
                     audio_streams = data.get("audioStreams", [])
                     if audio_streams:
                         audio_streams.sort(key=lambda x: x.get("bitrate", 0), reverse=True)
@@ -74,7 +90,7 @@ async def piped_search_fallback(query: str):
         "https://pipedapi.leptons.xyz",
         "https://pipedapi.adminforge.de"
     ]
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
         for instance in piped_instances:
             try:
                 print(f"Trying Piped search fallback: {instance}")
@@ -98,7 +114,7 @@ async def piped_search_fallback(query: str):
     return []
 
 async def search_youtube_smart(query: str, max_results: int = 15):
-    cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+    cookie_path = ensure_cookies()
     ydl_opts = {
         'format': 'bestaudio/best',
         'noplaylist': True,
@@ -115,12 +131,13 @@ async def search_youtube_smart(query: str, max_results: int = 15):
         }
     }
     
-    if os.path.exists(cookie_path):
+    if cookie_path:
         ydl_opts['cookiefile'] = cookie_path
         print(f"🔍 Using cookies for search: {cookie_path}")
+    else:
+        print("💡 Search proceeding without cookies (Environment variable missing)")
 
     try:
-        # Try yt-dlp search first
         print(f"Attempting yt-dlp search for: {query}")
         result = await asyncio.to_thread(lambda: yt_dlp.YoutubeDL(ydl_opts).extract_info(f"ytsearch{max_results}:{query}", download=False))
         if 'entries' in result:
@@ -141,7 +158,7 @@ async def search_youtube_smart(query: str, max_results: int = 15):
     return []
 
 async def get_stream_url(video_id: str):
-    cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+    cookie_path = ensure_cookies()
     ydl_opts = {
         'format': 'bestaudio/best',
         'quiet': True,
@@ -155,22 +172,18 @@ async def get_stream_url(video_id: str):
         }
     }
 
-    # Cookie support: Look for cookies.txt in the same folder as main.py
-    if os.path.exists(cookie_path):
+    if cookie_path:
         ydl_opts['cookiefile'] = cookie_path
-        print(f"🎵 Using cookies for stream extraction: {cookie_path}")
+        print(f"🎵 Using cookies for extraction: {cookie_path}")
     else:
-        print(f"⚠️ Warning: No cookies found at {cookie_path}")
+        print("💡 Extraction proceeding without cookies (Environment variable missing)")
 
     try:
-        # 1. Try yt-dlp first
         video_url = f"https://www.youtube.com/watch?v={video_id}"
         print(f"Attempting yt-dlp extraction for: {video_url}")
         
-        # Run yt-dlp in a thread to keep FastAPI responsive
         info = await asyncio.to_thread(lambda: yt_dlp.YoutubeDL(ydl_opts).extract_info(video_url, download=False))
         
-        # Try to get the direct URL from formats if not in root
         if 'url' not in info and 'formats' in info:
             audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
             if audio_formats:
@@ -182,17 +195,15 @@ async def get_stream_url(video_id: str):
              
     except Exception as e:
         error_msg = str(e)
-        print(f"yt-dlp extraction failed: {error_msg}")
+        print(f"❌ yt-dlp extraction failed: {error_msg}")
         
-        # 2. If it's a "Bot/Sign in" error, trigger Piped Fallback
         if "confirm you're not a bot" in error_msg or "Sign in" in error_msg or "403" in error_msg:
             print("Triggering Piped API fallback...")
             piped_url = await get_piped_stream(video_id)
             if piped_url:
-                print("Piped fallback successful!")
+                print("✅ Piped fallback successful!")
                 return piped_url
             
-    # Final check: try Piped anyway if yt-dlp didn't return a URL
     piped_url = await get_piped_stream(video_id)
     if piped_url:
         return piped_url
