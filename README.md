@@ -32,7 +32,14 @@ A sleek, modern UI built for speed and visual excellence.
 - Python 3.10+
 - `ffmpeg` (for audio processing via yt-dlp)
 
-### Running the Backend
+### Running the Application
+The easiest way to start both the frontend and backend is:
+```bash
+npm run dev:all
+```
+
+Alternatively, you can run them separately:
+#### Backend
 ```bash
 cd backend
 python -m venv venv
@@ -41,11 +48,16 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-### Running the Frontend
+#### Frontend
 ```bash
-npm install
 npm run dev
 ```
+
+### 💡 Search Without Local Backend
+If you close your local server, search will fail by default. To "get over this", you can point the app to a deployed backend (like on Vercel):
+1. Create a `.env` file in the root.
+2. Add `VITE_API_URL=https://your-deployed-app.vercel.app/api`.
+3. Restart the frontend.
 
 ## 🌐 Deployment on Vercel
 

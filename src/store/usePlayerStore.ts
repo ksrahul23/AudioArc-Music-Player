@@ -135,7 +135,7 @@ export const usePlayerStore = create<PlayerState>()(
                         searchResults: [],
                         isSearching: false,
                         searchError: isNetworkError
-                            ? 'Cannot connect to backend. Make sure the server is running on port 8000.'
+                            ? 'Cannot connect to backend. Make sure the local server is running, or configure VITE_API_URL in .env to use a remote backend.'
                             : (error.message || 'Search failed. Please try again.')
                     });
                 }
