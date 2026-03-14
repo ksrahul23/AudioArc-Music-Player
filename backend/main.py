@@ -134,10 +134,11 @@ async def get_stream_url(video_id: str):
         }
     }
 
-    # Cookie support: Look for cookies.txt in the backend folder
-    if os.path.exists("cookies.txt"):
-        ydl_opts['cookiefile'] = "cookies.txt"
-        print("Using cookies.txt for stream extraction")
+    # Cookie support: Look for cookies.txt in the same folder as main.py
+    cookie_path = os.path.join(os.path.dirname(__file__), "cookies.txt")
+    if os.path.exists(cookie_path):
+        ydl_opts['cookiefile'] = cookie_path
+        print(f"Using cookies from: {cookie_path}")
 
     try:
         # 1. Try yt-dlp first
