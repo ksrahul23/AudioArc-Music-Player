@@ -16,12 +16,18 @@ class YouTubeService:
             'no_warnings': True,
             'nocheckcertificate': True,
             'source_address': '0.0.0.0',
-            'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
+            # Mimic a modern browser to reduce bot detection
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android'],
+                    'player_client': ['android', 'web'],
                     'skip': ['hls', 'dash']
                 }
+            },
+            'http_headers': {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Sec-Fetch-Mode': 'navigate',
             }
         }
         # Multi-instance fallback for reliability
@@ -34,8 +40,21 @@ class YouTubeService:
         ]
 
     def _get_cookie_file(self) -> Optional[str]:
-        cookie_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt")
-        return cookie_path if os.path.exists(cookie_path) else None
+        """
+        Search for cookies.txt in common locations for cloud deployments.
+        """
+        paths = [
+            # Local backend root
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt"),
+            # Render Secret Files default (often mounted or relative)
+            "/etc/secrets/cookies.txt",
+            "cookies.txt",
+            "backend/cookies.txt"
+        ]
+        for path in paths:
+            if os.path.exists(path):
+                return path
+        return None
 
     async def search_youtube(self, query: str, max_results: int = 15) -> List[dict]:
         cached = cache_manager.get_search(query)
