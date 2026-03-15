@@ -44,10 +44,11 @@ class YouTubeService:
         Search for cookies.txt in common locations for cloud deployments.
         """
         paths = [
+            # Render Secret Files defaults
+            "/etc/secrets/YT_COOKIES",
+            "/etc/secrets/cookies.txt",
             # Local backend root
             os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt"),
-            # Render Secret Files default (often mounted or relative)
-            "/etc/secrets/cookies.txt",
             "cookies.txt",
             "backend/cookies.txt"
         ]

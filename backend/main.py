@@ -38,8 +38,20 @@ async def startup_event():
     print("🚀 AudioArc Bridge Server starting...", flush=True)
     
     # Check for secret file first (Render /etc/secrets mounting)
-    if os.path.exists("backend/cookies.txt"):
-        print("✅ Found local backend/cookies.txt file", flush=True)
+    # The user's screenshot shows a secret file named YT_COOKIES
+    secret_paths = [
+        "/etc/secrets/YT_COOKIES",
+        "/etc/secrets/cookies.txt",
+        "backend/cookies.txt",
+        "cookies.txt"
+    ]
+    
+    found_file = False
+    for path in secret_paths:
+        if os.path.exists(path):
+            print(f"✅ Found secret file at {path}", flush=True)
+            found_file = True
+            break
     
     cookies = os.getenv("YT_COOKIES")
     if cookies:
@@ -53,9 +65,9 @@ async def startup_event():
                 f.write(cookies)
             print(f"✅ YouTube session cookies written to {cookie_path}", flush=True)
         except Exception as e:
-            print(f"❌ Failed to write cookies.txt: {e}", flush=True)
-    else:
-        print("⚠️ No YT_COOKIES environment variable found", flush=True)
+            print(f"❌ Failed to write cookies.txt from env var: {e}", flush=True)
+    elif not found_file:
+        print("⚠️ No YT_COOKIES environment variable or secret file found", flush=True)
 
 @app.get("/")
 async def root():
