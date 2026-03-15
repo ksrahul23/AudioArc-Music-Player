@@ -32,17 +32,33 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     print("🚀 Pro Music Backend starting...", flush=True)
+    
+    # --- Deep Diagnostics ---
     cookies_content = os.getenv("YT_COOKIES")
     if cookies_content:
-        cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
         # Cleanup pasted quotes
         cookies_content = cookies_content.strip().strip('"').strip("'")
-        with open(cookie_path, "w") as f:
-            f.write(cookies_content)
-        print(f"✅ Cookies loaded from environment: {cookie_path}", flush=True)
+        
+        cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+        
+        try:
+            with open(cookie_path, "w") as f:
+                f.write(cookies_content)
+            
+            file_size = os.path.getsize(cookie_path)
+            is_netscape = cookies_content.startswith("#")
+            
+            print(f"✅ Diagnostics: YT_COOKIES found in environment.", flush=True)
+            print(f"📄 Diagnostics: Wrote to {cookie_path} ({file_size} bytes).", flush=True)
+            print(f"🚩 Diagnostics: Netscape format check: {'PASS' if is_netscape else 'FAIL (Check export!)'}", flush=True)
+        except Exception as e:
+            print(f"❌ Diagnostics: Failed to write cookie file: {str(e)}", flush=True)
+    else:
+        print("ℹ️ Diagnostics: YT_COOKIES environment variable is EMPTY or NOT SET.", flush=True)
+    # -----------------------
 
 @app.get("/api/search", response_model=SearchResponse)
-@limiter.limit("20/minute")
+@limiter.limit("40/minute") # Increased limit for search
 async def search(request: Request, q: str = Query(..., min_length=1)):
     """
     Search for tracks on YouTube.
@@ -52,7 +68,7 @@ async def search(request: Request, q: str = Query(..., min_length=1)):
     return {"results": results}
 
 @app.get("/api/stream/{video_id}", response_model=StreamInfo)
-@limiter.limit("10/minute")
+@limiter.limit("20/minute") # Increased limit for stream
 async def stream(request: Request, video_id: str):
     """
     Get direct stream URL and metadata for a video.
@@ -60,35 +76,10 @@ async def stream(request: Request, video_id: str):
     """
     info = await youtube_service.get_stream_info(video_id)
     if not info:
-        raise HTTPException(status_code=404, detail="Stream not found or blocked by YouTube")
+        # If extraction completely fails (including fallbacks)
+        raise HTTPException(status_code=404, detail="Stream failed. YouTube is being extra difficult today!")
     return info
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
-
-# Example JSON Formats (for documentation)
-"""
-Search Response:
-{
-  "results": [
-    {
-      "videoId": "s4fYA_wkta8",
-      "title": "Iss Tarah Aashiqui Ka",
-      "artist": "Kumar Sanu",
-      "thumbnail": "https://i.ytimg.com/vi/s4fYA_wkta8/hqdefault.jpg",
-      "duration": 345
-    }
-  ]
-}
-
-Stream Response:
-{
-  "videoId": "s4fYA_wkta8",
-  "title": "Iss Tarah Aashiqui Ka",
-  "artist": "Kumar Sanu",
-  "thumbnail": "https://i.ytimg.com/vi/s4fYA_wkta8/hqdefault.jpg",
-  "duration": 345,
-  "stream_url": "https://rr2---sn-cvh76nlz.googlevideo.com/videoplayback?..."
-}
-"""
