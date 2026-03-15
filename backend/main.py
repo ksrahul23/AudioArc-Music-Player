@@ -48,7 +48,7 @@ async def startup_event():
 async def root():
     return {"message": "Professional Music Backend is online"}
 
-@app.get("/search", response_model=SearchResponse, response_model_by_alias=True)
+@app.get("/api/search", response_model=SearchResponse, response_model_by_alias=True)
 @limiter.limit("30/minute")
 async def search(request: Request, q: str = Query(..., min_length=1)):
     """
@@ -58,7 +58,7 @@ async def search(request: Request, q: str = Query(..., min_length=1)):
     results = await youtube_service.search_youtube(q)
     return {"results": results}
 
-@app.get("/stream/{video_id}", response_model=StreamInfo)
+@app.get("/api/stream/{video_id}", response_model=StreamInfo)
 @limiter.limit("20/minute")
 async def stream(request: Request, video_id: str):
     """
