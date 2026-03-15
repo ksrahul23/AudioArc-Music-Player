@@ -1,23 +1,28 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
-class TrackBase(BaseModel):
-    videoId: str
+class TrackSearchResult(BaseModel):
+    """
+    Search endpoint response model.
+    """
     title: str
-    artist: str
-    thumbnail: str
+    artist: str  # maps to uploader in yt-dlp
+    videoId: str
     duration: int
+    thumbnail: str
 
 class SearchResponse(BaseModel):
-    results: List[TrackBase]
+    results: List[TrackSearchResult]
 
 class StreamInfo(BaseModel):
-    videoId: str
+    """
+    Stream endpoint response model.
+    """
     title: str
-    artist: str
+    stream_url: str
     thumbnail: str
     duration: int
-    stream_url: str
+    videoId: str
 
 class ErrorResponse(BaseModel):
     detail: str

@@ -1,27 +1,28 @@
 from cachetools import TTLCache
-import time
+from typing import Any, Optional
 
 class CacheManager:
-    def __init__(self, ttl: int = 1800, maxsize: int = 1000):
-        """
-        Initialize the cache manager.
-        :param ttl: Time to live in seconds (default: 1800s / 30m)
-        :param maxsize: Maximum number of items in the cache
-        """
-        self.stream_cache = TTLCache(maxsize=maxsize, ttl=ttl)
-        self.search_cache = TTLCache(maxsize=maxsize, ttl=(ttl // 2))  # Search results cache for 15m
+    """
+    In-memory TTL Cache Manager.
+    Results are cached for 30 minutes to reduce IP blocking risk.
+    """
+    def __init__(self, ttl_seconds: int = 1800, max_size: int = 1000):
+        # 30 minutes cache for stream URLs
+        self._stream_cache = TTLCache(maxsize=max_size, ttl=ttl_seconds)
+        # 15 minutes cache for search results
+        self._search_cache = TTLCache(maxsize=max_size, ttl=900)
 
-    def get_stream(self, video_id: str):
-        return self.stream_cache.get(video_id)
+    def get_stream(self, video_id: str) -> Optional[Any]:
+        return self._stream_cache.get(video_id)
 
-    def set_stream(self, video_id: str, data: dict):
-        self.stream_cache[video_id] = data
+    def set_stream(self, video_id: str, data: Any):
+        self._stream_cache[video_id] = data
 
-    def get_search(self, query: str):
-        return self.search_cache.get(query)
+    def get_search(self, query: str) -> Optional[Any]:
+        return self._search_cache.get(query)
 
-    def set_search(self, query: str, results: list):
-        self.search_cache[query] = results
+    def set_search(self, query: str, results: Any):
+        self._search_cache[query] = results
 
-# Global cache instance
+# Singleton instance
 cache_manager = CacheManager()

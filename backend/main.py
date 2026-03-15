@@ -4,22 +4,22 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
-import shutil
 from dotenv import load_dotenv
 
+# Import our modular components
 from models.schemas import SearchResponse, StreamInfo, ErrorResponse
 from services.youtube_service import youtube_service
 
-# Load environment variables
+# Load environment variables (like YT_COOKIES)
 load_dotenv()
 
-# Initialize Rate Limiter
+# Setup Rate Limiting
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="Pro Music Player API")
+app = FastAPI(title="Professional Music API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Allow CORS
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,58 +28,63 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Startup: Handle Cookies from Environment
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 Pro Music Backend starting...", flush=True)
-    
-    # --- Deep Diagnostics ---
+    """
+    Handle initialization and cookie setup for cloud environments.
+    """
+    print("🚀 Starting Professional Music Backend...", flush=True)
     cookies_content = os.getenv("YT_COOKIES")
     if cookies_content:
-        # Cleanup pasted quotes
-        cookies_content = cookies_content.strip().strip('"').strip("'")
-        
         cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
-        
-        try:
-            with open(cookie_path, "w") as f:
-                f.write(cookies_content)
-            
-            file_size = os.path.getsize(cookie_path)
-            is_netscape = cookies_content.startswith("#")
-            
-            print(f"✅ Diagnostics: YT_COOKIES found in environment.", flush=True)
-            print(f"📄 Diagnostics: Wrote to {cookie_path} ({file_size} bytes).", flush=True)
-            print(f"🚩 Diagnostics: Netscape format check: {'PASS' if is_netscape else 'FAIL (Check export!)'}", flush=True)
-        except Exception as e:
-            print(f"❌ Diagnostics: Failed to write cookie file: {str(e)}", flush=True)
+        # Cleanup quotes if any
+        cookies_content = cookies_content.strip().strip('"').strip("'")
+        with open(cookie_path, "w") as f:
+            f.write(cookies_content)
+        print(f"✅ YouTube cookies successfully loaded to {cookie_path}", flush=True)
     else:
-        print("ℹ️ Diagnostics: YT_COOKIES environment variable is EMPTY or NOT SET.", flush=True)
-    # -----------------------
+        print("ℹ️ Warning: YT_COOKIES not found. IP blocking may occur on Render.", flush=True)
+
+@app.get("/")
+async def root():
+    return {"message": "Professional Music API is Online", "status": "healthy"}
 
 @app.get("/api/search", response_model=SearchResponse)
-@limiter.limit("40/minute") # Increased limit for search
+@limiter.limit("30/minute")
 async def search(request: Request, q: str = Query(..., min_length=1)):
     """
-    Search for tracks on YouTube.
-    Caches results for 15 minutes.
+    Search endpoint: Returns track metadata.
+    Example output format:
+    {
+        "results": [
+            {
+                "title": "Song Title",
+                "artist": "Artist Name",
+                "video_id": "abc123",
+                "duration": 240,
+                "thumbnail": "url_to_image"
+            }
+        ]
+    }
     """
     results = await youtube_service.search_tracks(q)
     return {"results": results}
 
 @app.get("/api/stream/{video_id}", response_model=StreamInfo)
-@limiter.limit("20/minute") # Increased limit for stream
+@limiter.limit("15/minute")
 async def stream(request: Request, video_id: str):
     """
-    Get direct stream URL and metadata for a video.
-    Caches results for 30 minutes.
+    Stream endpoint: Returns direct audio URL.
+    Does NOT proxy audio; returns a direct YouTube URL for the frontend to play.
     """
     info = await youtube_service.get_stream_info(video_id)
     if not info:
-        # If extraction completely fails (including fallbacks)
-        raise HTTPException(status_code=404, detail="Stream failed. YouTube is being extra difficult today!")
+        raise HTTPException(
+            status_code=404, 
+            detail="Failed to extract stream. YouTube may have blocked the server IP."
+        )
     return info
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "ok"}
