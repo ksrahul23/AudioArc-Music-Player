@@ -7,11 +7,12 @@ AudioArc is a premium, full-stack music streaming application designed for a sea
 The project is structured into two main components: a high-performance Python backend and a responsive React frontend.
 
 ### 🌐 Backend (`/backend`)
-A FastAPI-powered service that interfaces with YouTube for real-time music discovery.
-- **Tech Stack**: FastAPI, Python 3.10+, `yt-dlp`.
+A FastAPI-powered service that acts as a low-latency bridge for YouTube audio.
+- **Tech Stack**: FastAPI, Python 3.10+, `yt-dlp`, `httpx`.
 - **Key Features**:
   - `GET /api/search`: Real-time YouTube search and metadata extraction.
-  - `GET /api/stream`: Dynamic extraction of high-quality audio stream URLs.
+  - `GET /api/audio_proxy/{video_id}`: **Audio Bridge** that fetches and pipes audio chunks directly to the client, bypassing IP blocks.
+  - **Robust Cookie Handling**: Bypasses YouTube bot detection on cloud providers.
   - Asynchronous processing for reduced latency.
 
 ### 🎨 Frontend (Root)
@@ -74,6 +75,8 @@ This project is configured for seamless deployment on Vercel.
 4. Set **Runtime** to `Python 3`.
 5. Set **Build Command** to `pip install -r requirements.txt`.
 6. Set **Start Command** to `uvicorn main:app --host 0.0.0.0 --port $PORT`.
+7. **Secret Files**: Add a secret file named `cookies.txt` at the path `backend/cookies.txt` (see `deployment_guide.md` for details).
+8. **Environment Variables**: Add `YT_COOKIES` as an alternative if not using Secret Files.
 
 ### 🌐 Deploying Frontend to Vercel
 1. Link your GitHub repository to a new project in the Vercel Dashboard.

@@ -103,7 +103,17 @@ class YouTubeService:
             return cached
 
         opts = self.ydl_opts.copy()
-        opts.update({'format': 'bestaudio/best', 'noplaylist': True})
+        # Loosen format selection for better compatibility across cloud IPs
+        opts.update({
+            'format': 'bestaudio', 
+            'noplaylist': True,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['web', 'android', 'ios'],
+                    'skip': ['hls', 'dash']
+                }
+            }
+        })
 
         if cookie_file := self._get_cookie_file():
             opts['cookiefile'] = cookie_file
@@ -119,14 +129,20 @@ class YouTubeService:
             
             direct_url = info.get('url')
             if not direct_url and 'formats' in info:
+                # Fallback to finding any audio-only format
                 audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
+                if not audio_formats:
+                    # Last resort: just get the best format available
+                    audio_formats = info['formats']
+                
                 if audio_formats:
-                    audio_formats.sort(key=lambda x: x.get('abr', 0), reverse=True)
+                    # Sort by bitrate if available
+                    audio_formats.sort(key=lambda x: x.get('abr') or x.get('tbr') or 0, reverse=True)
                     direct_url = audio_formats[0]['url']
 
             if direct_url:
                 data = {
-                    "title": info.get("title", ""),
+                    "title": info.get("title", "Unknown Title"),
                     "stream_url": direct_url,
                     "thumbnail": info.get("thumbnail", ""),
                     "duration": int(info.get("duration", 0)),
@@ -134,7 +150,8 @@ class YouTubeService:
                 }
                 cache_manager.set_stream(video_id, data)
                 return data
-        except Exception:
+        except Exception as e:
+            print(f"❌ yt-dlp extraction failed for {video_id}: {e}")
             pass
 
         return await self._piped_stream_fallback(video_id)

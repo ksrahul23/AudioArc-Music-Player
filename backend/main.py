@@ -36,8 +36,14 @@ async def startup_event():
     On startup, load YouTube cookies if provided via environment variable.
     """
     print("🚀 AudioArc Bridge Server starting...", flush=True)
+    
+    # Check for secret file first (Render /etc/secrets mounting)
+    if os.path.exists("backend/cookies.txt"):
+        print("✅ Found local backend/cookies.txt file", flush=True)
+    
     cookies = os.getenv("YT_COOKIES")
     if cookies:
+        print(f"📡 Found YT_COOKIES environment variable (length: {len(cookies)})", flush=True)
         # Save cookies to the local directory where youtube_service expects them
         cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
         try:
@@ -45,9 +51,11 @@ async def startup_event():
             cookies = cookies.strip().strip('"').strip("'")
             with open(cookie_path, "w") as f:
                 f.write(cookies)
-            print(f"✅ YouTube session cookies loaded from environment variable to {cookie_path}", flush=True)
+            print(f"✅ YouTube session cookies written to {cookie_path}", flush=True)
         except Exception as e:
             print(f"❌ Failed to write cookies.txt: {e}", flush=True)
+    else:
+        print("⚠️ No YT_COOKIES environment variable found", flush=True)
 
 @app.get("/")
 async def root():

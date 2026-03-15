@@ -11,8 +11,9 @@ class TrackSearchResult(BaseModel):
     duration: int
     thumbnail: str
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = {
+        "populate_by_name": True
+    }
 
 class SearchResponse(BaseModel):
     """
@@ -20,8 +21,8 @@ class SearchResponse(BaseModel):
     """
     results: List[TrackSearchResult]
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "results": [
                     {
@@ -34,6 +35,7 @@ class SearchResponse(BaseModel):
                 ]
             }
         }
+    }
 
 class StreamInfo(BaseModel):
     """
@@ -45,12 +47,14 @@ class StreamInfo(BaseModel):
     duration: int
     video_id: str
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "title": "Song Title",
                 "stream_url": "https://manifest.googlevideo.com/...",
                 "thumbnail": "https://example.com/thumb.jpg",
-                "duration": 240
+                "duration": 240,
+                "video_id": "videoId123"
             }
         }
+    }
