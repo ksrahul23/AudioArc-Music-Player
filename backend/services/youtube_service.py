@@ -1,21 +1,21 @@
 import yt_dlp
 import asyncio
 import os
+import httpx
 from typing import List, Optional
 from cache.cache_manager import cache_manager
 
 class YouTubeService:
     """
     YouTubeService handles interaction with YouTube via yt-dlp.
-    It uses the Android player client to avoid aggressive IP blocking.
+    Optimized for Android player client and includes Piped API fallbacks.
     """
     def __init__(self):
-        # Professional yt-dlp configuration as requested
         self.ydl_opts = {
             'quiet': True,
             'no_warnings': True,
             'nocheckcertificate': True,
-            'source_address': '0.0.0.0',  # Force IPv4 to avoid Render IPv6 issues
+            'source_address': '0.0.0.0',
             'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
             'extractor_args': {
                 'youtube': {
@@ -24,17 +24,20 @@ class YouTubeService:
                 }
             }
         }
+        # Multi-instance fallback for reliability
+        self.piped_instances = [
+            "https://pipedapi.kavin.rocks",
+            "https://pipedapi.leptons.xyz",
+            "https://pipedapi.adminforge.de",
+            "https://piped-api.lunar.icu",
+            "https://api.piped.projectsegfau.lt"
+        ]
 
     def _get_cookie_file(self) -> Optional[str]:
-        # Check for cookies.txt in the backend root for resilience
         cookie_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt")
         return cookie_path if os.path.exists(cookie_path) else None
 
     async def search_youtube(self, query: str, max_results: int = 15) -> List[dict]:
-        """
-        Search for tracks and return metadata.
-        """
-        # Return cached results if available
         cached = cache_manager.get_search(query)
         if cached:
             return cached
@@ -57,37 +60,31 @@ class YouTubeService:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, _extract)
             tracks = []
-            
             if 'entries' in result:
                 for entry in result['entries']:
                     tracks.append({
-                        "title": entry.get("title", "Unknown Title"),
+                        "title": entry.get("title", ""),
                         "artist/channel": entry.get("uploader", "Unknown Artist"),
                         "video_id": entry.get("id"),
                         "duration": int(entry.get("duration", 0)),
                         "thumbnail": entry.get("thumbnails", [{"url": ""}])[0].get("url") if entry.get("thumbnails") else ""
                     })
-            
-            cache_manager.set_search(query, tracks)
-            return tracks
-        except Exception as e:
-            print(f"yt-dlp search exception: {e}")
-            return []
+            if tracks:
+                cache_manager.set_search(query, tracks)
+                return tracks
+        except Exception:
+            # Silence search errors and fallback to Piped
+            pass
+
+        return await self._piped_search_fallback(query)
 
     async def get_stream_url(self, video_id: str) -> Optional[dict]:
-        """
-        Extract the direct stream URL and metadata.
-        """
-        # Return cached stream info if available
         cached = cache_manager.get_stream(video_id)
         if cached:
             return cached
 
         opts = self.ydl_opts.copy()
-        opts.update({
-            'format': 'bestaudio/best',
-            'noplaylist': True,
-        })
+        opts.update({'format': 'bestaudio/best', 'noplaylist': True})
 
         if cookie_file := self._get_cookie_file():
             opts['cookiefile'] = cookie_file
@@ -101,7 +98,6 @@ class YouTubeService:
             loop = asyncio.get_event_loop()
             info = await loop.run_in_executor(None, _extract)
             
-            # Extract direct URL from formats if not directly provided
             direct_url = info.get('url')
             if not direct_url and 'formats' in info:
                 audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
@@ -109,21 +105,59 @@ class YouTubeService:
                     audio_formats.sort(key=lambda x: x.get('abr', 0), reverse=True)
                     direct_url = audio_formats[0]['url']
 
-            if not direct_url:
-                return None
+            if direct_url:
+                data = {
+                    "title": info.get("title", ""),
+                    "stream_url": direct_url,
+                    "thumbnail": info.get("thumbnail", ""),
+                    "duration": int(info.get("duration", 0)),
+                    "video_id": video_id
+                }
+                cache_manager.set_stream(video_id, data)
+                return data
+        except Exception:
+            pass
 
-            data = {
-                "title": info.get("title", "Unknown Title"),
-                "stream_url": direct_url,
-                "thumbnail": info.get("thumbnail", ""),
-                "duration": int(info.get("duration", 0))
-            }
-            
-            cache_manager.set_stream(video_id, data)
-            return data
-        except Exception as e:
-            print(f"yt-dlp extraction exception for {video_id}: {e}")
-            return None
+        return await self._piped_stream_fallback(video_id)
 
-# Singleton service for system-wide access
+    async def _piped_search_fallback(self, query: str) -> List[dict]:
+        async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
+            for instance in self.piped_instances:
+                try:
+                    res = await client.get(f"{instance}/search", params={"q": query, "filter": "music_songs"})
+                    if res.status_code == 200:
+                        data = res.json()
+                        tracks = []
+                        for item in data.get("items", []):
+                            if item.get("type") == "stream":
+                                tracks.append({
+                                    "title": item.get("title", ""),
+                                    "artist/channel": item.get("uploaderName", "Unknown Artist"),
+                                    "video_id": item.get("url", "").split("=")[-1],
+                                    "duration": item.get("duration", 0),
+                                    "thumbnail": item.get("thumbnail", "")
+                                })
+                        return tracks
+                except Exception: continue
+        return []
+
+    async def _piped_stream_fallback(self, video_id: str) -> Optional[dict]:
+        async with httpx.AsyncClient(timeout=15.0, verify=False) as client:
+            for instance in self.piped_instances:
+                try:
+                    res = await client.get(f"{instance}/streams/{video_id}")
+                    if res.status_code == 200:
+                        data = res.json()
+                        audio = sorted(data.get("audioStreams", []), key=lambda x: x.get("bitrate", 0), reverse=True)
+                        if audio:
+                            return {
+                                "title": data.get("title", "Unknown Title"),
+                                "stream_url": audio[0]["url"],
+                                "thumbnail": data.get("thumbnailUrl", ""),
+                                "duration": data.get("duration", 0),
+                                "video_id": video_id
+                            }
+                except Exception: continue
+        return None
+
 youtube_service = YouTubeService()
