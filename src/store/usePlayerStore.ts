@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { API_BASE_URL } from '../config';
 
 export interface Track {
-    videoId: string;
+    video_id: string;
     title: string;
     artist: string;
     thumbnail: string;
@@ -81,10 +81,10 @@ export const usePlayerStore = create<PlayerState>()(
 
             setCurrentTrack: (track: Track) => set((state) => ({
                 currentTrack: track,
-                streamUrl: state.currentTrack?.videoId === track.videoId ? state.streamUrl : null,
+                streamUrl: state.currentTrack?.video_id === track.video_id ? state.streamUrl : null,
                 progress: 0,
                 isPlaying: true,
-                seekTarget: state.currentTrack?.videoId === track.videoId ? 0 : null
+                seekTarget: state.currentTrack?.video_id === track.video_id ? 0 : null
             })),
             setQueue: (queue: Track[]) => set({ queue }),
             setIsPlaying: (isPlaying: boolean) => set({ isPlaying }),
@@ -111,7 +111,7 @@ export const usePlayerStore = create<PlayerState>()(
                 playlists: state.playlists.map(pl => {
                     if (pl.id === playlistId) {
                         // Avoid duplicates
-                        if (pl.tracks.find(t => t.videoId === track.videoId)) return pl;
+                        if (pl.tracks.find(t => t.video_id === track.video_id)) return pl;
                         return { ...pl, tracks: [...pl.tracks, track] };
                     }
                     return pl;
@@ -144,7 +144,7 @@ export const usePlayerStore = create<PlayerState>()(
             playNext: () => {
                 const { queue, currentTrack } = get();
                 if (!currentTrack || queue.length === 0) return;
-                const currentIndex = queue.findIndex((t: Track) => t.videoId === currentTrack.videoId);
+                const currentIndex = queue.findIndex((t: Track) => t.video_id === currentTrack.video_id);
                 if (currentIndex !== -1 && currentIndex < queue.length - 1) {
                     set({ currentTrack: queue[currentIndex + 1], streamUrl: null, progress: 0 });
                 }
@@ -153,7 +153,7 @@ export const usePlayerStore = create<PlayerState>()(
             playPrevious: () => {
                 const { queue, currentTrack } = get();
                 if (!currentTrack || queue.length === 0) return;
-                const currentIndex = queue.findIndex((t: Track) => t.videoId === currentTrack.videoId);
+                const currentIndex = queue.findIndex((t: Track) => t.video_id === currentTrack.video_id);
                 if (currentIndex > 0) {
                     set({ currentTrack: queue[currentIndex - 1], streamUrl: null, progress: 0 });
                 }

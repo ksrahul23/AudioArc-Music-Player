@@ -6,24 +6,24 @@ from slowapi.errors import RateLimitExceeded
 import os
 from dotenv import load_dotenv
 
-# Import our modular components
-from models.schemas import SearchResponse, StreamInfo, ErrorResponse
+# Absolute imports for modular structure
+from models.schemas import SearchResponse, StreamInfo
 from services.youtube_service import youtube_service
 
-# Load environment variables (like YT_COOKIES)
+# Load environment variables (e.g., YT_COOKIES for cloud resilience)
 load_dotenv()
 
-# Setup Rate Limiting
+# Setup Rate Limiting to prevent IP flagging
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="Professional Music API")
+app = FastAPI(title="Pro Music Backend API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS Configuration
+# Enable CORS for frontend integration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -31,60 +31,48 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """
-    Handle initialization and cookie setup for cloud environments.
+    On startup, verify and load YouTube cookies if provided.
+    This is the definitive way to bypass cloud-IP blocking.
     """
-    print("🚀 Starting Professional Music Backend...", flush=True)
-    cookies_content = os.getenv("YT_COOKIES")
-    if cookies_content:
+    print("🚀 Senior Backend Refactor starting...", flush=True)
+    cookies = os.getenv("YT_COOKIES")
+    if cookies:
         cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
-        # Cleanup quotes if any
-        cookies_content = cookies_content.strip().strip('"').strip("'")
+        # Cleanup potential formatting issues
+        cookies = cookies.strip().strip('"').strip("'")
         with open(cookie_path, "w") as f:
-            f.write(cookies_content)
-        print(f"✅ YouTube cookies successfully loaded to {cookie_path}", flush=True)
-    else:
-        print("ℹ️ Warning: YT_COOKIES not found. IP blocking may occur on Render.", flush=True)
+            f.write(cookies)
+        print(f"✅ YouTube session cookies loaded to {cookie_path}", flush=True)
 
 @app.get("/")
 async def root():
-    return {"message": "Professional Music API is Online", "status": "healthy"}
+    return {"message": "Professional Music Backend is online"}
 
-@app.get("/api/search", response_model=SearchResponse)
+@app.get("/search", response_model=SearchResponse, response_model_by_alias=True)
 @limiter.limit("30/minute")
 async def search(request: Request, q: str = Query(..., min_length=1)):
     """
-    Search endpoint: Returns track metadata.
-    Example output format:
-    {
-        "results": [
-            {
-                "title": "Song Title",
-                "artist": "Artist Name",
-                "video_id": "abc123",
-                "duration": 240,
-                "thumbnail": "url_to_image"
-            }
-        ]
-    }
+    Search YouTube for music tracks.
+    Returns: title, artist/channel, video_id, duration, thumbnail.
     """
-    results = await youtube_service.search_tracks(q)
+    results = await youtube_service.search_youtube(q)
     return {"results": results}
 
-@app.get("/api/stream/{video_id}", response_model=StreamInfo)
-@limiter.limit("15/minute")
+@app.get("/stream/{video_id}", response_model=StreamInfo)
+@limiter.limit("20/minute")
 async def stream(request: Request, video_id: str):
     """
-    Stream endpoint: Returns direct audio URL.
-    Does NOT proxy audio; returns a direct YouTube URL for the frontend to play.
+    Fetch direct stream URL for a video.
+    Does NOT proxy audio; returns a direct YouTube CDN URL.
     """
-    info = await youtube_service.get_stream_info(video_id)
+    info = await youtube_service.get_stream_url(video_id)
     if not info:
         raise HTTPException(
             status_code=404, 
-            detail="Failed to extract stream. YouTube may have blocked the server IP."
+            detail="Stream could not be extracted. IP might be blocked or video is unavailable."
         )
     return info
 
 @app.get("/health")
-async def health():
-    return {"status": "ok"}
+async def health_check():
+    return {"status": "healthy"}

@@ -81,9 +81,9 @@ export const BottomSheet: React.FC = () => {
                     <div className="space-y-2">
                         {searchResults.map((track, i) => (
                             <div
-                                key={track.videoId + i}
+                                key={track.video_id + i}
                                 onClick={() => handleTrackSelect(track)}
-                                className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${currentTrack?.videoId === track.videoId ? 'bg-accent-bg' : ''}`}
+                                className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${currentTrack?.video_id === track.video_id ? 'bg-accent-bg' : ''}`}
                             >
                                 <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 shadow-sm">
                                     <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
@@ -92,7 +92,7 @@ export const BottomSheet: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h4 className={`text-[15px] font-semibold truncate ${currentTrack?.videoId === track.videoId ? 'text-accent-color' : 'text-text-primary'}`}>
+                                    <h4 className={`text-[15px] font-semibold truncate ${currentTrack?.video_id === track.video_id ? 'text-accent-color' : 'text-text-primary'}`}>
                                         {track.title}
                                     </h4>
                                     <p className="text-xs text-text-muted truncate mt-0.5">{track.artist}</p>

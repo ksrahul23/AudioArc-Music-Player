@@ -225,7 +225,7 @@ export const Player: React.FC = () => {
                                 <div className="px-4 py-3 border-b border-border-color/50 font-bold text-sm">Add to Playlist</div>
                                 <div className="overflow-y-auto no-scrollbar py-2">
                                     {playlists.map(pl => {
-                                        const isInPlaylist = pl.tracks.some(t => t.videoId === currentTrack?.videoId);
+                                        const isInPlaylist = pl.tracks.some(t => t.video_id === currentTrack?.video_id);
                                         return (
                                             <button
                                                 key={pl.id}

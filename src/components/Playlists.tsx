@@ -124,7 +124,7 @@ export const Playlists: React.FC = () => {
                         <div className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[150px] pr-2 custom-scrollbar">
                             {pl.tracks.length > 0 ? (
                                 pl.tracks.map((track, i) => (
-                                    <div key={`${track.videoId}-${i}`} className="flex items-center gap-3 w-full group/track hover:bg-black/5 dark:hover:bg-white/5 rounded-lg p-2 transition-colors cursor-pointer" onClick={() => {
+                                    <div key={`${track.video_id}-${i}`} className="flex items-center gap-3 w-full group/track hover:bg-black/5 dark:hover:bg-white/5 rounded-lg p-2 transition-colors cursor-pointer" onClick={() => {
                                         setQueue(pl.tracks);
                                         setCurrentTrack(track);
                                         setCurrentPage('home');

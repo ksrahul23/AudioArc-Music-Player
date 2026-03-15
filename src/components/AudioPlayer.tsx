@@ -13,7 +13,8 @@ export const AudioPlayer: React.FC = () => {
 
         const fetchStream = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/stream/${currentTrack.videoId}`);
+                // Using new snake_case endpoint and path parameter
+                const response = await fetch(`${API_BASE_URL}/stream/${currentTrack.video_id}`);
                 if (!response.ok) throw new Error("Failed to fetch stream");
                 const data = await response.json();
                 console.log("Fetched stream URL:", data.stream_url);
@@ -30,7 +31,7 @@ export const AudioPlayer: React.FC = () => {
         fetchStream();
 
         return () => { active = false; };
-    }, [currentTrack?.videoId, setStreamUrl, setIsPlaying]);
+    }, [currentTrack?.video_id, setStreamUrl, setIsPlaying]);
 
     // Handle Audio Element State Sync
     useEffect(() => {

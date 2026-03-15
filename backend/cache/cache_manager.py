@@ -3,26 +3,27 @@ from typing import Any, Optional
 
 class CacheManager:
     """
-    In-memory TTL Cache Manager.
-    Results are cached for 30 minutes to reduce IP blocking risk.
+    CacheManager handles in-memory caching of YouTube metadata and stream URLs.
+    This reduces the number of calls to yt-dlp, minimizing the risk of IP blocking
+    and significantly improving response times for repeated requests.
     """
-    def __init__(self, ttl_seconds: int = 1800, max_size: int = 1000):
-        # 30 minutes cache for stream URLs
-        self._stream_cache = TTLCache(maxsize=max_size, ttl=ttl_seconds)
-        # 15 minutes cache for search results
-        self._search_cache = TTLCache(maxsize=max_size, ttl=900)
+    def __init__(self, ttl: int = 1800, maxsize: int = 1000):
+        # Result cache for video stream URLs (30 minutes TTL)
+        self.stream_cache = TTLCache(maxsize=maxsize, ttl=ttl)
+        # Search results cache (15 minutes TTL for variety)
+        self.search_cache = TTLCache(maxsize=maxsize, ttl=ttl // 2)
 
     def get_stream(self, video_id: str) -> Optional[Any]:
-        return self._stream_cache.get(video_id)
+        return self.stream_cache.get(video_id)
 
     def set_stream(self, video_id: str, data: Any):
-        self._stream_cache[video_id] = data
+        self.stream_cache[video_id] = data
 
     def get_search(self, query: str) -> Optional[Any]:
-        return self._search_cache.get(query)
+        return self.search_cache.get(query)
 
     def set_search(self, query: str, results: Any):
-        self._search_cache[query] = results
+        self.search_cache[query] = results
 
-# Singleton instance
+# Singleton instance for high-performance access
 cache_manager = CacheManager()

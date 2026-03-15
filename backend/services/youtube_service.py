@@ -6,15 +6,16 @@ from cache.cache_manager import cache_manager
 
 class YouTubeService:
     """
-    Core service for interacting with YouTube using yt-dlp.
-    Optimized for Android player client to minimize blocks.
+    YouTubeService handles interaction with YouTube via yt-dlp.
+    It uses the Android player client to avoid aggressive IP blocking.
     """
     def __init__(self):
-        self.common_opts = {
+        # Professional yt-dlp configuration as requested
+        self.ydl_opts = {
             'quiet': True,
             'no_warnings': True,
             'nocheckcertificate': True,
-            'source_address': '0.0.0.0',  # Force IPv4
+            'source_address': '0.0.0.0',  # Force IPv4 to avoid Render IPv6 issues
             'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
             'extractor_args': {
                 'youtube': {
@@ -24,31 +25,29 @@ class YouTubeService:
             }
         }
 
-    def _get_cookies(self) -> Optional[str]:
-        # Look for cookies.txt in the backend root
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        cookie_path = os.path.join(base_dir, "cookies.txt")
+    def _get_cookie_file(self) -> Optional[str]:
+        # Check for cookies.txt in the backend root for resilience
+        cookie_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt")
         return cookie_path if os.path.exists(cookie_path) else None
 
-    async def search_tracks(self, query: str, max_results: int = 15) -> List[dict]:
+    async def search_youtube(self, query: str, max_results: int = 15) -> List[dict]:
         """
-        Search for music tracks. Returns metadata without stream URLs.
+        Search for tracks and return metadata.
         """
-        # Check cache first
+        # Return cached results if available
         cached = cache_manager.get_search(query)
         if cached:
             return cached
 
-        opts = self.common_opts.copy()
+        opts = self.ydl_opts.copy()
         opts.update({
             'format': 'bestaudio/best',
             'extract_flat': 'in_playlist',
             'default_search': 'ytsearch',
         })
-        
-        cookie_path = self._get_cookies()
-        if cookie_path:
-            opts['cookiefile'] = cookie_path
+
+        if cookie_file := self._get_cookie_file():
+            opts['cookiefile'] = cookie_file
 
         def _extract():
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -57,40 +56,41 @@ class YouTubeService:
         try:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, _extract)
-            songs = []
+            tracks = []
+            
             if 'entries' in result:
                 for entry in result['entries']:
-                    songs.append({
-                        "title": entry.get("title", ""),
-                        "artist": entry.get("uploader", "Unknown Artist"),
-                        "videoId": entry.get("id"),
+                    tracks.append({
+                        "title": entry.get("title", "Unknown Title"),
+                        "artist/channel": entry.get("uploader", "Unknown Artist"),
+                        "video_id": entry.get("id"),
                         "duration": int(entry.get("duration", 0)),
-                        "thumbnail": entry.get("thumbnails", [{"url": ""}])[0].get("url") if entry.get("thumbnails") else "",
+                        "thumbnail": entry.get("thumbnails", [{"url": ""}])[0].get("url") if entry.get("thumbnails") else ""
                     })
             
-            cache_manager.set_search(query, songs)
-            return songs
+            cache_manager.set_search(query, tracks)
+            return tracks
         except Exception as e:
-            print(f"yt-dlp search error: {str(e)}")
+            print(f"yt-dlp search exception: {e}")
             return []
 
-    async def get_stream_info(self, video_id: str) -> Optional[dict]:
+    async def get_stream_url(self, video_id: str) -> Optional[dict]:
         """
-        Extract direct stream URL and metadata for a video.
+        Extract the direct stream URL and metadata.
         """
-        # Check cache first
+        # Return cached stream info if available
         cached = cache_manager.get_stream(video_id)
         if cached:
             return cached
 
-        opts = self.common_opts.copy()
+        opts = self.ydl_opts.copy()
         opts.update({
             'format': 'bestaudio/best',
+            'noplaylist': True,
         })
-        
-        cookie_path = self._get_cookies()
-        if cookie_path:
-            opts['cookiefile'] = cookie_path
+
+        if cookie_file := self._get_cookie_file():
+            opts['cookiefile'] = cookie_file
 
         def _extract():
             url = f"https://www.youtube.com/watch?v={video_id}"
@@ -101,32 +101,29 @@ class YouTubeService:
             loop = asyncio.get_event_loop()
             info = await loop.run_in_executor(None, _extract)
             
-            # Find the best direct audio URL
-            stream_url = info.get('url')
-            if not stream_url and 'formats' in info:
+            # Extract direct URL from formats if not directly provided
+            direct_url = info.get('url')
+            if not direct_url and 'formats' in info:
                 audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
                 if audio_formats:
-                    # Sort by average bitrate descending
                     audio_formats.sort(key=lambda x: x.get('abr', 0), reverse=True)
-                    stream_url = audio_formats[0]['url']
+                    direct_url = audio_formats[0]['url']
 
-            if not stream_url:
+            if not direct_url:
                 return None
 
             data = {
-                "title": info.get("title", ""),
-                "stream_url": stream_url,
+                "title": info.get("title", "Unknown Title"),
+                "stream_url": direct_url,
                 "thumbnail": info.get("thumbnail", ""),
-                "duration": int(info.get("duration", 0)),
-                "videoId": video_id,
-                "artist": info.get("uploader", "Unknown Artist")
+                "duration": int(info.get("duration", 0))
             }
             
             cache_manager.set_stream(video_id, data)
             return data
         except Exception as e:
-            print(f"yt-dlp extraction error for {video_id}: {str(e)}")
+            print(f"yt-dlp extraction exception for {video_id}: {e}")
             return None
 
-# Singleton service instance
+# Singleton service for system-wide access
 youtube_service = YouTubeService()

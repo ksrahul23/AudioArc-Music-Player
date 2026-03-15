@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 yt-dlp
-httpx
 python-dotenv
 cachetools
 slowapi
+httpx
