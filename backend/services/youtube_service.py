@@ -104,12 +104,15 @@ class YouTubeService:
 
         opts = self.ydl_opts.copy()
         # Loosen format selection for better compatibility across cloud IPs
+        # Added OAuth2 support for high-reliability extraction
         opts.update({
-            'format': 'bestaudio', 
+            'format': 'bestaudio/best', 
             'noplaylist': True,
+            'username': 'oauth2',
+            'password': '',  # Leave empty; prompts for code in logs
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['web', 'android', 'ios'],
+                    'player_client': ['web', 'android', 'ios', 'tv'],
                     'skip': ['hls', 'dash']
                 }
             }
@@ -129,16 +132,21 @@ class YouTubeService:
             
             direct_url = info.get('url')
             if not direct_url and 'formats' in info:
-                # Fallback to finding any audio-only format
-                audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
-                if not audio_formats:
-                    # Last resort: just get the best format available
-                    audio_formats = info['formats']
+                # 1. Filter for audio formats
+                formats = info['formats']
+                audio_only = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
                 
-                if audio_formats:
-                    # Sort by bitrate if available
-                    audio_formats.sort(key=lambda x: x.get('abr') or x.get('tbr') or 0, reverse=True)
-                    direct_url = audio_formats[0]['url']
+                # 2. Sort by quality if found
+                if audio_only:
+                    audio_only.sort(key=lambda x: x.get('abr') or x.get('tbr') or 0, reverse=True)
+                    direct_url = audio_only[0]['url']
+                else:
+                    # 3. Last ditch fallback: find ANY format with a URL
+                    any_with_url = [f for f in formats if f.get('url')]
+                    if any_with_url:
+                        # Favor bitrates or just take the first one
+                        any_with_url.sort(key=lambda x: x.get('tbr') or 0, reverse=True)
+                        direct_url = any_with_url[0]['url']
 
             if direct_url:
                 data = {
