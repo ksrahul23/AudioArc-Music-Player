@@ -41,16 +41,12 @@ class YouTubeService:
 
     def _get_cookie_file(self) -> Optional[str]:
         """
-        Search for cookies.txt in common locations for cloud deployments.
+        Search for the writable cookies.txt created by the startup event.
         """
         paths = [
-            # Render Secret Files defaults
-            "/etc/secrets/YT_COOKIES",
-            "/etc/secrets/cookies.txt",
-            # Local backend root
+            # Guaranteed writable location created in main.py
             os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt"),
             "cookies.txt",
-            "backend/cookies.txt"
         ]
         for path in paths:
             if os.path.exists(path):

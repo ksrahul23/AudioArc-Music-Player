@@ -33,41 +33,45 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """
-    On startup, load YouTube cookies if provided via environment variable.
+    On startup, ensure a writable cookies.txt exists by reading from env vars or secret files.
     """
     print("🚀 AudioArc Bridge Server starting...", flush=True)
     
-    # Check for secret file first (Render /etc/secrets mounting)
-    # The user's screenshot shows a secret file named YT_COOKIES
-    secret_paths = [
-        "/etc/secrets/YT_COOKIES",
-        "/etc/secrets/cookies.txt",
-        "backend/cookies.txt",
-        "cookies.txt"
-    ]
+    cookie_content = None
     
-    found_file = False
-    for path in secret_paths:
-        if os.path.exists(path):
-            print(f"✅ Found secret file at {path}", flush=True)
-            found_file = True
-            break
+    # 1. Try Environment Variable first
+    env_cookies = os.getenv("YT_COOKIES")
+    if env_cookies:
+        print("📡 Found YT_COOKIES environment variable", flush=True)
+        cookie_content = env_cookies
     
-    cookies = os.getenv("YT_COOKIES")
-    if cookies:
-        print(f"📡 Found YT_COOKIES environment variable (length: {len(cookies)})", flush=True)
-        # Save cookies to the local directory where youtube_service expects them
-        cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+    # 2. Try Secret File locations if env var not found
+    if not cookie_content:
+        secret_paths = ["/etc/secrets/YT_COOKIES", "/etc/secrets/cookies.txt"]
+        for p in secret_paths:
+            if os.path.exists(p):
+                print(f"✅ Found secret file at {p}", flush=True)
+                try:
+                    with open(p, "r") as f:
+                        cookie_content = f.read()
+                    break
+                except Exception as e:
+                    print(f"❌ Error reading secret file {p}: {e}")
+
+    # 3. Write to a guaranteed writable location
+    if cookie_content:
+        # Use current file's directory for predictability
+        output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
         try:
-            # Cleanup potential formatting issues from env vars
-            cookies = cookies.strip().strip('"').strip("'")
-            with open(cookie_path, "w") as f:
-                f.write(cookies)
-            print(f"✅ YouTube session cookies written to {cookie_path}", flush=True)
+            # Clean up content
+            cookie_content = cookie_content.strip().strip('"').strip("'")
+            with open(output_path, "w") as f:
+                f.write(cookie_content)
+            print(f"✅ Writable cookies.txt created at {output_path}", flush=True)
         except Exception as e:
-            print(f"❌ Failed to write cookies.txt from env var: {e}", flush=True)
-    elif not found_file:
-        print("⚠️ No YT_COOKIES environment variable or secret file found", flush=True)
+            print(f"❌ Failed to write local cookies.txt: {e}", flush=True)
+    else:
+        print("⚠️ No YouTube cookies found (search may be restricted)", flush=True)
 
 @app.get("/")
 async def root():
