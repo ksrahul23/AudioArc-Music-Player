@@ -6,7 +6,7 @@ class TrackSearchResult(BaseModel):
     Schema for individual search result items.
     """
     title: str
-    artist: str = Field(..., alias="artist/channel")
+    artist: str
     video_id: str
     duration: int
     thumbnail: str

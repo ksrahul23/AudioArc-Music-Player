@@ -77,6 +77,7 @@ class YouTubeService:
                 return ydl.extract_info(f"ytsearch{max_results}:{query}", download=False)
 
         try:
+            print(f"🔍 Searching YouTube for: {query}", flush=True)
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, _extract)
             tracks = []
@@ -84,16 +85,18 @@ class YouTubeService:
                 for entry in result['entries']:
                     tracks.append({
                         "title": entry.get("title", ""),
-                        "artist/channel": entry.get("uploader", "Unknown Artist"),
+                        "artist": entry.get("uploader", "Unknown Artist"),
                         "video_id": entry.get("id"),
                         "duration": int(entry.get("duration", 0)),
                         "thumbnail": entry.get("thumbnails", [{"url": ""}])[0].get("url") if entry.get("thumbnails") else ""
                     })
+            
+            print(f"✅ Found {len(tracks)} tracks via yt-dlp", flush=True)
             if tracks:
                 cache_manager.set_search(query, tracks)
                 return tracks
-        except Exception:
-            # Silence search errors and fallback to Piped
+        except Exception as e:
+            print(f"❌ yt-dlp search failed for '{query}': {e}", flush=True)
             pass
 
         return await self._piped_search_fallback(query)
@@ -169,7 +172,7 @@ class YouTubeService:
                             if item.get("type") == "stream":
                                 tracks.append({
                                     "title": item.get("title", ""),
-                                    "artist/channel": item.get("uploaderName", "Unknown Artist"),
+                                    "artist": item.get("uploaderName", "Unknown Artist"),
                                     "video_id": item.get("url", "").split("=")[-1],
                                     "duration": item.get("duration", 0),
                                     "thumbnail": item.get("thumbnail", "")
