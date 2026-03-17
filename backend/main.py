@@ -73,9 +73,6 @@ async def startup_event():
     else:
         print("⚠️ No YouTube cookies found (search may be restricted)", flush=True)
 
-    print("\n🔐 [ADVANCED] YouTube OAuth2 enabled.", flush=True)
-    print("If extraction fails, check logs for a code (google.com/device) to link your account.", flush=True)
-
 @app.get("/")
 async def root():
     return {"message": "AudioArc Bridge Server is online"}

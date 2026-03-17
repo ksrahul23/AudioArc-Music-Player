@@ -101,15 +101,13 @@ class YouTubeService:
         cached = cache_manager.get_stream(video_id)
         if cached:
             return cached
-
         opts = self.ydl_opts.copy()
-        # Loosen format selection for better compatibility across cloud IPs
-        # Added OAuth2 support for high-reliability extraction
+        # Clean options for cloud reliability
         opts.update({
             'format': 'bestaudio/best', 
             'noplaylist': True,
-            'username': 'oauth2',
-            'password': '',  # Leave empty; prompts for code in logs
+            'quiet': True,
+            'no_warnings': True,
             'extractor_args': {
                 'youtube': {
                     'player_client': ['web', 'android', 'ios', 'tv'],
@@ -127,42 +125,67 @@ class YouTubeService:
                 return ydl.extract_info(url, download=False)
 
         try:
+            print(f"🎬 Extracting stream URL for {video_id}...", flush=True)
             loop = asyncio.get_event_loop()
             info = await loop.run_in_executor(None, _extract)
             
             direct_url = info.get('url')
             if not direct_url and 'formats' in info:
-                # 1. Filter for audio formats
+                # Filter for best possible audio match
                 formats = info['formats']
                 audio_only = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
                 
-                # 2. Sort by quality if found
                 if audio_only:
                     audio_only.sort(key=lambda x: x.get('abr') or x.get('tbr') or 0, reverse=True)
                     direct_url = audio_only[0]['url']
                 else:
-                    # 3. Last ditch fallback: find ANY format with a URL
+                    # Last ditch fallback: find ANY format with a URL
                     any_with_url = [f for f in formats if f.get('url')]
                     if any_with_url:
-                        # Favor bitrates or just take the first one
                         any_with_url.sort(key=lambda x: x.get('tbr') or 0, reverse=True)
                         direct_url = any_with_url[0]['url']
 
             if direct_url:
+                print(f"✅ yt-dlp extraction successful for {video_id}", flush=True)
                 data = {
-                    "title": info.get("title", "Unknown Title"),
                     "stream_url": direct_url,
-                    "thumbnail": info.get("thumbnail", ""),
-                    "duration": int(info.get("duration", 0)),
-                    "video_id": video_id
+                    "format": info.get('ext', 'unknown'),
+                    "duration": int(info.get('duration', 0))
                 }
                 cache_manager.set_stream(video_id, data)
                 return data
         except Exception as e:
-            print(f"❌ yt-dlp extraction failed for {video_id}: {e}")
-            pass
+            print(f"⚠️ yt-dlp extraction failed for {video_id}: {e}", flush=True)
 
-        return await self._piped_stream_fallback(video_id)
+        # FINAL LAYER: Automatic Piped API Fallback for extraction
+        print(f"🔄 Falling back to Piped API for extraction: {video_id}", flush=True)
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                # Try multiple Piped instances if one is down
+                instances = ["https://pipedapi.kavin.rocks", "https://api.piped.victr.me"]
+                for base_url in instances:
+                    try:
+                        resp = await client.get(f"{base_url}/streams/{video_id}")
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            audio_streams = data.get("audioStreams", [])
+                            if audio_streams:
+                                # Sort by bitrate and pick best
+                                audio_streams.sort(key=lambda x: x.get("bitrate", 0), reverse=True)
+                                print(f"✅ Piped extraction successful via {base_url}", flush=True)
+                                data = {
+                                    "stream_url": audio_streams[0]["url"],
+                                    "format": audio_streams[0].get("format", "m4a"),
+                                    "duration": data.get("duration", 0)
+                                }
+                                cache_manager.set_stream(video_id, data)
+                                return data
+                    except Exception:
+                        continue
+        except Exception as e:
+            print(f"❌ All extraction methods failed for {video_id}: {e}", flush=True)
+        
+        return None
 
     async def _piped_search_fallback(self, query: str) -> List[dict]:
         async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
