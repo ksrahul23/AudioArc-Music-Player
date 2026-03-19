@@ -13,13 +13,47 @@ export const AudioPlayer: React.FC = () => {
 
         const fetchStream = async () => {
             try {
-                // Using new snake_case endpoint and path parameter
-                const response = await fetch(`${API_BASE_URL}/stream/${currentTrack.video_id}`);
-                if (!response.ok) throw new Error("Failed to fetch stream");
-                const data = await response.json();
-                console.log("Fetched stream URL:", data.stream_url);
+                let streamUrl = '';
+                
+                // 1. SPOTUBE METHOD: Try client-side extraction via Piped API first
+                // Uses user's IP to bypass Render's cloud blocks
+                console.log("🕊️ Attempting client-side extraction (Spotube Method)...");
+                const pipedInstances = [
+                    "https://pipedapi.kavin.rocks",
+                    "https://api.piped.victr.me",
+                    "https://pipedapi.col7a.me"
+                ];
+                
+                for (const instance of pipedInstances) {
+                    try {
+                        const pipedRes = await fetch(`${instance}/streams/${currentTrack.video_id}`);
+                        if (pipedRes.ok) {
+                            const pipedData = await pipedRes.json();
+                            const audioStreams = pipedData.audioStreams || [];
+                            if (audioStreams.length > 0) {
+                                // Sort by bitrate and pick the best one
+                                audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+                                streamUrl = audioStreams[0].url;
+                                console.log(`✅ Client-side extraction successful via ${instance}`);
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        continue;
+                    }
+                }
+
+                // 2. BACKEND FALLBACK: If client-side failed, use the Render bridge
+                if (!streamUrl) {
+                    console.log("📡 Falling back to backend bridge...");
+                    const response = await fetch(`${API_BASE_URL}/stream/${currentTrack.video_id}`);
+                    if (!response.ok) throw new Error("Failed to fetch stream from backend");
+                    const data = await response.json();
+                    streamUrl = data.stream_url;
+                }
+
                 if (active) {
-                    setStreamUrl(data.stream_url);
+                    setStreamUrl(streamUrl);
                     setIsPlaying(true);
                 }
             } catch (error) {
