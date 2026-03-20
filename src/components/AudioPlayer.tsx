@@ -27,24 +27,30 @@ export const AudioPlayer: React.FC = () => {
                 
                 for (const instance of pipedInstances) {
                     try {
-                        console.log(`🔗 Trying instance: ${instance}`);
-                        const pipedRes = await fetch(`${instance}/streams/${currentTrack.video_id}`);
-                        if (pipedRes.ok) {
-                            const pipedData = await pipedRes.json() as any;
+                        console.log(`🔗 Trying CORS-bypassed instance: ${instance}`);
+                        // Wrap with AllOrigins CORS Proxy
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`${instance}/streams/${currentTrack.video_id}`)}`;
+                        const response = await fetch(proxyUrl);
+                        
+                        if (response.ok) {
+                            const data = await response.json() as any;
+                            // AllOrigins returns the actual response in the 'contents' field as a string
+                            const pipedData = JSON.parse(data.contents);
                             const audioStreams = pipedData.audioStreams || [];
+                            
                             if (audioStreams.length > 0) {
                                 audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
                                 streamUrl = audioStreams[0].url;
-                                console.log(`✅ Client-side extraction SUCCESS via ${instance}`);
+                                console.log(`✅ Client-side extraction SUCCESS via ${instance} (CORS-bypassed)`);
                                 break;
                             } else {
                                 console.warn(`⚠️ Instance ${instance} returned no audio streams.`);
                             }
                         } else {
-                            console.warn(`❌ Instance ${instance} returned status ${pipedRes.status}`);
+                            console.warn(`❌ Proxy returned status ${response.status} for ${instance}`);
                         }
                     } catch (e) {
-                        console.warn(`❌ Failed to fetch from ${instance}:`, e);
+                        console.warn(`❌ Failed to fetch from ${instance} through proxy:`, e);
                         continue;
                     }
                 }

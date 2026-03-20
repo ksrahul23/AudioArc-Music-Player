@@ -108,6 +108,8 @@ class YouTubeService:
             'noplaylist': True,
             'quiet': True,
             'no_warnings': True,
+            'force_ipv4': True,
+            'http_chunk_size': 1024 * 512,
             'extractor_args': {
                 'youtube': {
                     'player_client': ['web', 'android', 'ios', 'tv'],
