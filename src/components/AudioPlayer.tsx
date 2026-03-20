@@ -16,29 +16,35 @@ export const AudioPlayer: React.FC = () => {
                 let streamUrl = '';
                 
                 // 1. SPOTUBE METHOD: Try client-side extraction via Piped API first
-                // Uses user's IP to bypass Render's cloud blocks
-                console.log("🕊️ Attempting client-side extraction (Spotube Method)...");
+                console.log("🕊️ Attempting client-side extraction (Spotube Method) for ID:", currentTrack.video_id);
                 const pipedInstances = [
                     "https://pipedapi.kavin.rocks",
                     "https://api.piped.victr.me",
-                    "https://pipedapi.col7a.me"
+                    "https://pipedapi.col7a.me",
+                    "https://pipedapi.privacydev.net",
+                    "https://piped-api.garudalinux.org"
                 ];
                 
                 for (const instance of pipedInstances) {
                     try {
+                        console.log(`🔗 Trying instance: ${instance}`);
                         const pipedRes = await fetch(`${instance}/streams/${currentTrack.video_id}`);
                         if (pipedRes.ok) {
-                            const pipedData = await pipedRes.json();
+                            const pipedData = await pipedRes.json() as any;
                             const audioStreams = pipedData.audioStreams || [];
                             if (audioStreams.length > 0) {
-                                // Sort by bitrate and pick the best one
                                 audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
                                 streamUrl = audioStreams[0].url;
-                                console.log(`✅ Client-side extraction successful via ${instance}`);
+                                console.log(`✅ Client-side extraction SUCCESS via ${instance}`);
                                 break;
+                            } else {
+                                console.warn(`⚠️ Instance ${instance} returned no audio streams.`);
                             }
+                        } else {
+                            console.warn(`❌ Instance ${instance} returned status ${pipedRes.status}`);
                         }
                     } catch (e) {
+                        console.warn(`❌ Failed to fetch from ${instance}:`, e);
                         continue;
                     }
                 }

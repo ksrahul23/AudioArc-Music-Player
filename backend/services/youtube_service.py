@@ -162,7 +162,12 @@ class YouTubeService:
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 # Try multiple Piped instances if one is down
-                instances = ["https://pipedapi.kavin.rocks", "https://api.piped.victr.me"]
+                instances = [
+                    "https://pipedapi.kavin.rocks", 
+                    "https://api.piped.victr.me",
+                    "https://pipedapi.col7a.me",
+                    "https://pipedapi.privacydev.net"
+                ]
                 for base_url in instances:
                     try:
                         resp = await client.get(f"{base_url}/streams/{video_id}")
@@ -180,7 +185,8 @@ class YouTubeService:
                                 }
                                 cache_manager.set_stream(video_id, data)
                                 return data
-                    except Exception:
+                    except Exception as e:
+                        print(f"⚠️ Piped instance {base_url} failed: {e}", flush=True)
                         continue
         except Exception as e:
             print(f"❌ All extraction methods failed for {video_id}: {e}", flush=True)
