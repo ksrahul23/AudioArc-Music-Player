@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, CLOUDFLARE_WORKER_URL } from '../config';
 
 export const AudioPlayer: React.FC = () => {
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -15,49 +15,35 @@ export const AudioPlayer: React.FC = () => {
             try {
                 let streamUrl = '';
                 
-                // 1. SPOTUBE METHOD: Try client-side extraction via Piped API first
-                console.log("🕊️ Attempting client-side extraction (Spotube Method) for ID:", currentTrack.video_id);
-                const pipedInstances = [
-                    "https://pipedapi.kavin.rocks",
-                    "https://api.piped.victr.me",
-                    "https://pipedapi.col7a.me",
-                    "https://pipedapi.privacydev.net",
-                    "https://piped-api.garudalinux.org"
-                ];
-                
-                for (const instance of pipedInstances) {
-                    try {
-                        console.log(`🔗 Trying CORS-bypassed instance: ${instance}`);
-                        // Wrap with AllOrigins CORS Proxy
-                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`${instance}/streams/${currentTrack.video_id}`)}`;
-                        const response = await fetch(proxyUrl);
+                // 1. CLOUDFLARE WORKER BRIDGE (The "Bulletproof" Method)
+                try {
+                    console.log("🌊 Attempting extraction via Cloudflare Worker Bridge...");
+                    
+                    // First, get the raw Google Video URL from Render
+                    const metaResponse = await fetch(`${API_BASE_URL}/get_stream_link/${currentTrack.video_id}`);
+                    if (metaResponse.ok) {
+                        const data = await metaResponse.json();
+                        const rawGoogleUrl = data.stream_url;
                         
-                        if (response.ok) {
-                            const data = await response.json() as any;
-                            // AllOrigins returns the actual response in the 'contents' field as a string
-                            const pipedData = JSON.parse(data.contents);
-                            const audioStreams = pipedData.audioStreams || [];
-                            
-                            if (audioStreams.length > 0) {
-                                audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
-                                streamUrl = audioStreams[0].url;
-                                console.log(`✅ Client-side extraction SUCCESS via ${instance} (CORS-bypassed)`);
-                                break;
+                        if (rawGoogleUrl) {
+                            // Only use Worker if it's not the default placeholder
+                            if (CLOUDFLARE_WORKER_URL && !CLOUDFLARE_WORKER_URL.includes('your-worker.workers.dev')) {
+                                streamUrl = `${CLOUDFLARE_WORKER_URL}/?url=${encodeURIComponent(rawGoogleUrl)}`;
+                                console.log("✅ Using Cloudflare Worker Proxy for bytes.");
                             } else {
-                                console.warn(`⚠️ Instance ${instance} returned no audio streams.`);
+                                console.warn("⚠️ Cloudflare Worker URL not configured. See README.md.");
                             }
-                        } else {
-                            console.warn(`❌ Proxy returned status ${response.status} for ${instance}`);
                         }
-                    } catch (e) {
-                        console.warn(`❌ Failed to fetch from ${instance} through proxy:`, e);
-                        continue;
+                    } else {
+                        console.warn(`❌ Render metadata fetch failed with status ${metaResponse.status}`);
                     }
+                } catch (e) {
+                    console.warn("⚠️ Cloudflare method failed, falling back to backend bridge:", e);
                 }
 
-                // 2. BACKEND FALLBACK: If client-side failed, use the Render bridge
+                // 2. BACKEND FALLBACK: If Cloudflare failed or not configured, use the Render bridge
                 if (!streamUrl) {
-                    console.log("📡 Falling back to backend bridge...");
+                    console.log("📡 Falling back to backend bridge (Render IP)...");
                     const response = await fetch(`${API_BASE_URL}/stream/${currentTrack.video_id}`);
                     if (!response.ok) throw new Error("Failed to fetch stream from backend");
                     const data = await response.json();

@@ -83,21 +83,31 @@ async def search(request: Request, q: str = Query(..., min_length=1)):
     results = await youtube_service.search_youtube(q)
     return {"results": results}
 
+@app.get("/api/get_stream_link/{video_id}")
+@limiter.limit("20/minute")
+async def get_stream_link(request: Request, video_id: str):
+    """
+    Returns the RAW Google Video stream URL.
+    This is used by the frontend to proxy bytes through a Cloudflare Worker.
+    """
+    info = await youtube_service.get_stream_url(video_id)
+    if not info:
+        raise HTTPException(status_code=404, detail="Stream link not found")
+    return info
+
 @app.get("/api/stream/{video_id}", response_model=StreamInfo)
 @limiter.limit("20/minute")
 async def stream(request: Request, video_id: str):
     """
     Returns stream metadata, pointing the stream_url to our local bridge/proxy.
+    (Kept for backwards compatibility)
     """
     info = await youtube_service.get_stream_url(video_id)
     if not info:
         raise HTTPException(status_code=404, detail="Stream not found")
     
-    # Point the frontend to our bridge instead of direct YouTube CDN
-    # This fulfills the "bridge" requirement and bypasses client IP blocks
     base_url = str(request.base_url).rstrip('/')
     info["stream_url"] = f"{base_url}/api/audio_proxy/{video_id}"
-    
     return info
 
 @app.get("/api/audio_proxy/{video_id}")
