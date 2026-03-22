@@ -34,6 +34,7 @@ interface PlayerState {
     userName: string;
     currentPage: 'home' | 'about' | 'playlists';
     playlists: Playlist[];
+    isDark: boolean;
 
     setCurrentTrack: (track: Track) => void;
     setQueue: (queue: Track[]) => void;
@@ -52,6 +53,7 @@ interface PlayerState {
     createPlaylist: (name: string) => void;
     renamePlaylist: (id: string, name: string) => void;
     addToPlaylist: (playlistId: string, track: Track) => void;
+    toggleTheme: () => void;
 
     playNext: () => void;
     playPrevious: () => void;
@@ -78,14 +80,18 @@ export const usePlayerStore = create<PlayerState>()(
             playlists: [
                 { id: 'liked', name: 'Liked Songs', tracks: [] }
             ],
+            isDark: true,
 
-            setCurrentTrack: (track: Track) => set((state) => ({
-                currentTrack: track,
-                streamUrl: state.currentTrack?.video_id === track.video_id ? state.streamUrl : null,
-                progress: 0,
-                isPlaying: true,
-                seekTarget: state.currentTrack?.video_id === track.video_id ? 0 : null
-            })),
+            setCurrentTrack: (track: Track) => set((state) => {
+                const isNewTrack = state.currentTrack?.video_id !== track.video_id;
+                return {
+                    currentTrack: track,
+                    streamUrl: isNewTrack ? null : state.streamUrl,
+                    progress: isNewTrack ? 0 : state.progress,
+                    isPlaying: true,
+                    seekTarget: isNewTrack ? null : state.seekTarget
+                };
+            }),
             setQueue: (queue: Track[]) => set({ queue }),
             setIsPlaying: (isPlaying: boolean) => set({ isPlaying }),
             setProgress: (progress: number) => set({ progress }),
@@ -143,26 +149,46 @@ export const usePlayerStore = create<PlayerState>()(
 
             playNext: () => {
                 const { queue, currentTrack } = get();
-                if (!currentTrack || queue.length === 0) return;
-                const currentIndex = queue.findIndex((t: Track) => t.video_id === currentTrack.video_id);
-                if (currentIndex !== -1 && currentIndex < queue.length - 1) {
-                    set({ currentTrack: queue[currentIndex + 1], streamUrl: null, progress: 0 });
+                if (queue.length === 0) return;
+                
+                let nextTrack: Track;
+                if (!currentTrack) {
+                    nextTrack = queue[0];
+                } else {
+                    const currentIndex = queue.findIndex((t: Track) => t.video_id === currentTrack.video_id);
+                    if (currentIndex !== -1 && currentIndex < queue.length - 1) {
+                        nextTrack = queue[currentIndex + 1];
+                    } else {
+                        nextTrack = queue[0]; // Loop to start
+                    }
                 }
+                set({ currentTrack: nextTrack, streamUrl: null, progress: 0, isPlaying: true });
             },
 
             playPrevious: () => {
                 const { queue, currentTrack } = get();
-                if (!currentTrack || queue.length === 0) return;
-                const currentIndex = queue.findIndex((t: Track) => t.video_id === currentTrack.video_id);
-                if (currentIndex > 0) {
-                    set({ currentTrack: queue[currentIndex - 1], streamUrl: null, progress: 0 });
+                if (queue.length === 0) return;
+
+                let prevTrack: Track;
+                if (!currentTrack) {
+                    prevTrack = queue[queue.length - 1];
+                } else {
+                    const currentIndex = queue.findIndex((t: Track) => t.video_id === currentTrack.video_id);
+                    if (currentIndex > 0) {
+                        prevTrack = queue[currentIndex - 1];
+                    } else {
+                        prevTrack = queue[queue.length - 1]; // Loop to end
+                    }
                 }
-            }
+                set({ currentTrack: prevTrack, streamUrl: null, progress: 0, isPlaying: true });
+            },
+
+            toggleTheme: () => set((state) => ({ isDark: !state.isDark }))
         }),
         {
             name: 'audioarc-storage', // unique name
             storage: createJSONStorage(() => localStorage),
-            partialize: (state) => ({ userName: state.userName, playlists: state.playlists }),
+            partialize: (state) => ({ userName: state.userName, playlists: state.playlists, isDark: state.isDark }),
         }
     )
 );

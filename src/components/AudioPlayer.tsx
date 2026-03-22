@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
-import { API_BASE_URL, CLOUDFLARE_WORKER_URL } from '../config';
+import { API_BASE_URL } from '../config';
 
 export const AudioPlayer: React.FC = () => {
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -13,46 +13,19 @@ export const AudioPlayer: React.FC = () => {
 
         const fetchStream = async () => {
             try {
-                let streamUrl = '';
+                console.log(`🎵 Fetching stream for ${currentTrack.video_id} from local backend...`);
+                const response = await fetch(`${API_BASE_URL}/stream/${currentTrack.video_id}`);
                 
-                // 1. CLOUDFLARE WORKER BRIDGE (The "Bulletproof" Method)
-                try {
-                    console.log("🌊 Attempting extraction via Cloudflare Worker Bridge...");
-                    
-                    // First, get the raw Google Video URL from Render
-                    const metaResponse = await fetch(`${API_BASE_URL}/get_stream_link/${currentTrack.video_id}`);
-                    if (metaResponse.ok) {
-                        const data = await metaResponse.json();
-                        const rawGoogleUrl = data.stream_url;
-                        
-                        if (rawGoogleUrl) {
-                            // Only use Worker if it's not the default placeholder
-                            if (CLOUDFLARE_WORKER_URL && !CLOUDFLARE_WORKER_URL.includes('your-worker.workers.dev')) {
-                                streamUrl = `${CLOUDFLARE_WORKER_URL}/?url=${encodeURIComponent(rawGoogleUrl)}`;
-                                console.log("✅ Using Cloudflare Worker Proxy for bytes.");
-                            } else {
-                                console.warn("⚠️ Cloudflare Worker URL not configured. See README.md.");
-                            }
-                        }
-                    } else {
-                        console.warn(`❌ Render metadata fetch failed with status ${metaResponse.status}`);
-                    }
-                } catch (e) {
-                    console.warn("⚠️ Cloudflare method failed, falling back to backend bridge:", e);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch stream: ${response.statusText}`);
                 }
-
-                // 2. BACKEND FALLBACK: If Cloudflare failed or not configured, use the Render bridge
-                if (!streamUrl) {
-                    console.log("📡 Falling back to backend bridge (Render IP)...");
-                    const response = await fetch(`${API_BASE_URL}/stream/${currentTrack.video_id}`);
-                    if (!response.ok) throw new Error("Failed to fetch stream from backend");
-                    const data = await response.json();
-                    streamUrl = data.stream_url;
-                }
+                
+                const data = await response.json();
+                const streamUrl = data.stream_url;
 
                 if (active) {
                     setStreamUrl(streamUrl);
-                    setIsPlaying(true);
+                    // No need to set isPlaying(true) here if it's already handled by the user/store
                 }
             } catch (error) {
                 console.error("Stream fetch error:", error);
@@ -69,8 +42,14 @@ export const AudioPlayer: React.FC = () => {
     useEffect(() => {
         if (audioRef.current) {
             if (isPlaying && streamUrl) {
-                // Only play if we have a valid source ready
-                audioRef.current.play().catch(console.error);
+                const playPromise = audioRef.current.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        if (error.name !== 'AbortError') {
+                            console.error("Playback error:", error);
+                        }
+                    });
+                }
             } else {
                 audioRef.current.pause();
             }
@@ -92,7 +71,12 @@ export const AudioPlayer: React.FC = () => {
             onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
             onDurationChange={(e) => setDuration(e.currentTarget.duration)}
             onEnded={playNext}
-            onPause={() => setIsPlaying(false)}
+            onPause={() => {
+                // Only sync pause to store if we actually have a source.
+                // This prevents the "pause" event triggered by changing the 'src' 
+                // from resetting our global 'isPlaying' state.
+                if (streamUrl) setIsPlaying(false);
+            }}
             onPlay={() => setIsPlaying(true)}
         />
     );

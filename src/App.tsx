@@ -11,8 +11,18 @@ const Playlists = lazy(() => import('./components/Playlists').then(module => ({ 
 
 function App() {
   const { currentTrack, userName, setUserName, currentPage } = usePlayerStore();
+  const isDark = usePlayerStore(state => state.isDark);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const promptShown = useRef(false);
+
+  useEffect(() => {
+    // Theme sync
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
 
   useEffect(() => {
     // Fullscreen listener

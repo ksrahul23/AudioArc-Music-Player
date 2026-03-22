@@ -9,6 +9,8 @@ export const Player: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [showPlaylists, setShowPlaylists] = useState(false);
     const [activeKey, setActiveKey] = useState<'left' | 'right' | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragProgress, setDragProgress] = useState(0);
 
     // Quick and dirty click-outside for menus if needed, or just handle it simply with a backdrop
     const handleSeek = (amount: number) => {
@@ -123,85 +125,98 @@ export const Player: React.FC = () => {
                         type="range"
                         min={0}
                         max={duration || 100}
-                        value={progress}
-                        onChange={(e) => setSeekTarget(Number(e.target.value))}
+                        value={isDragging ? dragProgress : progress}
+                        onMouseDown={() => setIsDragging(true)}
+                        onMouseUp={() => {
+                            setIsDragging(false);
+                            setSeekTarget(dragProgress);
+                        }}
+                        onTouchStart={() => setIsDragging(true)}
+                        onTouchEnd={() => {
+                            setIsDragging(false);
+                            setSeekTarget(dragProgress);
+                        }}
+                        onChange={(e) => setDragProgress(Number(e.target.value))}
                         className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-20"
                     />
                     <div className="w-full h-1.5 bg-border-color rounded-full overflow-hidden pointer-events-none z-0">
                         <div
                             className="h-full bg-accent-color rounded-full transition-all duration-100 ease-linear"
-                            style={{ width: `${progressPercent}%` }}
+                            style={{ width: `${isDragging ? (dragProgress / (duration || 100)) * 100 : progressPercent}%` }}
                         />
                     </div>
                     {/* The handle dot */}
                     <div
                         className="absolute top-1/2 -mt-2 w-4 h-4 bg-white border-2 border-accent-color rounded-full transition-all duration-100 ease-linear shadow-sm z-10 pointer-events-none group-active:scale-125 group-hover:scale-110"
-                        style={{ left: `calc(${progressPercent}% - 8px)` }}
+                        style={{ left: `calc(${isDragging ? (dragProgress / (duration || 100)) * 100 : progressPercent}% - 8px)` }}
                     />
                 </div>
             </div>
 
             {/* Playback Controls */}
-            <div className="w-full flex items-center justify-between px-1 relative">
+            <div className="w-full grid grid-cols-3 items-center px-1 relative">
 
-                {/* Settings Menu Button & Popup */}
-                <div className="relative">
-                    <button
-                        onClick={() => { setShowSettings(!showSettings); setShowPlaylists(false); }}
-                        className="p-3 text-text-muted hover:text-text-primary transition-colors bg-white/5 dark:bg-black/20 rounded-xl"
-                    >
-                        <Settings size={20} />
-                    </button>
+                {/* Left side: Settings */}
+                <div className="flex justify-start">
+                    <div className="relative">
+                        <button
+                            onClick={() => { setShowSettings(!showSettings); setShowPlaylists(false); }}
+                            className="p-3 text-text-muted hover:text-text-primary transition-colors bg-white/5 dark:bg-black/20 rounded-xl"
+                        >
+                            <Settings size={20} />
+                        </button>
 
-                    {showSettings && (
-                        <>
-                            <div className="fixed inset-0 z-40" onClick={() => setShowSettings(false)}></div>
-                            <div className="absolute bottom-full left-0 mb-4 w-48 bg-sheet-bg backdrop-blur-2xl border border-border-color rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
-                                <button onClick={handleFullscreen} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                                    <Maximize size={18} className="text-text-muted" />
-                                    <span className="text-sm font-medium">Fullscreen</span>
-                                </button>
-                                <a href="https://github.com/ksrahul23/AudioArc-Music-Player" target="_blank" rel="noreferrer" onClick={() => setShowSettings(false)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                                    <Github size={18} className="text-text-muted" />
-                                    <span className="text-sm font-medium">GitHub Repo</span>
-                                </a>
-                                <button onClick={() => { setCurrentPage('about'); setShowSettings(false); }} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-border-color/50">
-                                    <Info size={18} className="text-text-muted" />
-                                    <span className="text-sm font-medium">About App</span>
-                                </button>
-                            </div>
-                        </>
-                    )}
+                        {showSettings && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowSettings(false)}></div>
+                                <div className="absolute bottom-full left-0 mb-4 w-48 bg-sheet-bg backdrop-blur-2xl border border-border-color rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
+                                    <button onClick={handleFullscreen} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                                        <Maximize size={18} className="text-text-muted" />
+                                        <span className="text-sm font-medium">Fullscreen</span>
+                                    </button>
+                                    <a href="https://github.com/ksrahul23/AudioArc-Music-Player" target="_blank" rel="noreferrer" onClick={() => setShowSettings(false)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                                        <Github size={18} className="text-text-muted" />
+                                        <span className="text-sm font-medium">GitHub Repo</span>
+                                    </a>
+                                    <button onClick={() => { setCurrentPage('about'); setShowSettings(false); }} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-border-color/50">
+                                        <Info size={18} className="text-text-muted" />
+                                        <span className="text-sm font-medium">About App</span>
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex flex-col items-center gap-2 px-2 sm:px-4">
+                {/* Center Group */}
+                <div className="flex flex-col items-center gap-2">
                     <div className="flex items-center gap-1.5 sm:gap-4 relative">
                         <button
                             onClick={() => handleSeek(-10)}
-                            className={`transition-all text-[10px] sm:text-xs font-bold flex flex-col items-center mr-1 sm:mr-2 ${activeKey === 'left' ? 'text-text-primary scale-110 opacity-100' : 'text-text-muted hover:text-text-primary opacity-60'}`}
+                            className={`transition-all text-[10px] sm:text-xs font-bold flex flex-col items-center ${activeKey === 'left' ? 'text-text-primary scale-110 opacity-100' : 'text-text-muted hover:text-text-primary opacity-60'}`}
                         >
                             <Rewind size={18} />
                             -10s
                         </button>
 
                         <button onClick={playPrevious} className="p-2 sm:p-3 text-text-primary hover:text-accent-color transition-colors bg-white/10 dark:bg-black/30 rounded-2xl">
-                            <SkipBack size={24} fill="currentColor" />
+                            <SkipBack className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" />
                         </button>
 
                         <button
                             onClick={() => setIsPlaying(!isPlaying)}
-                            className="w-16 h-16 flex items-center justify-center bg-accent-color text-white rounded-[24px] shadow-lg hover:scale-105 active:scale-95 transition-all mx-2 sm:mx-4"
+                            className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center bg-accent-color text-white rounded-[20px] sm:rounded-[24px] shadow-lg hover:scale-105 active:scale-95 transition-all mx-1 sm:mx-2"
                         >
-                            {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
+                            {isPlaying ? <Pause className="w-6 h-6 sm:w-7 sm:h-7" fill="currentColor" /> : <Play className="w-6 h-6 sm:w-7 sm:h-7 ml-1" fill="currentColor" />}
                         </button>
 
                         <button onClick={playNext} className="p-2 sm:p-3 text-text-primary hover:text-accent-color transition-colors bg-white/10 dark:bg-black/30 rounded-2xl">
-                            <SkipForward size={24} fill="currentColor" />
+                            <SkipForward className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" />
                         </button>
 
                         <button
                             onClick={() => handleSeek(10)}
-                            className={`transition-all text-[10px] sm:text-xs font-bold flex flex-col items-center ml-1 sm:ml-2 ${activeKey === 'right' ? 'text-text-primary scale-110 opacity-100' : 'text-text-muted hover:text-text-primary opacity-60'}`}
+                            className={`transition-all text-[10px] sm:text-xs font-bold flex flex-col items-center ${activeKey === 'right' ? 'text-text-primary scale-110 opacity-100' : 'text-text-muted hover:text-text-primary opacity-60'}`}
                         >
                             <FastForward size={18} />
                             +10s
@@ -209,50 +224,52 @@ export const Player: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Add to Playlist Popup */}
-                <div className="relative">
-                    <button
-                        onClick={() => { setShowPlaylists(!showPlaylists); setShowSettings(false); }}
-                        className="p-3 text-text-muted hover:text-text-primary transition-colors bg-white/5 dark:bg-black/20 rounded-xl"
-                    >
-                        <ListPlus size={20} />
-                    </button>
+                {/* Right side: Add to Playlist */}
+                <div className="flex justify-end">
+                    <div className="relative">
+                        <button
+                            onClick={() => { setShowPlaylists(!showPlaylists); setShowSettings(false); }}
+                            className="p-3 text-text-muted hover:text-text-primary transition-colors bg-white/5 dark:bg-black/20 rounded-xl"
+                        >
+                            <ListPlus size={20} />
+                        </button>
 
-                    {showPlaylists && (
-                        <>
-                            <div className="fixed inset-0 z-40" onClick={() => setShowPlaylists(false)}></div>
-                            <div className="absolute bottom-full right-0 mb-4 w-56 bg-sheet-bg backdrop-blur-2xl border border-border-color rounded-2xl shadow-xl z-50 flex flex-col max-h-64 animate-in fade-in slide-in-from-bottom-2">
-                                <div className="px-4 py-3 border-b border-border-color/50 font-bold text-sm">Add to Playlist</div>
-                                <div className="overflow-y-auto no-scrollbar py-2">
-                                    {playlists.map(pl => {
-                                        const isInPlaylist = pl.tracks.some(t => t.video_id === currentTrack?.video_id);
-                                        return (
-                                            <button
-                                                key={pl.id}
-                                                onClick={() => {
-                                                    if (!isInPlaylist && currentTrack) {
-                                                        addToPlaylist(pl.id, currentTrack);
-                                                        setShowPlaylists(false);
-                                                    }
-                                                }}
-                                                disabled={isInPlaylist}
-                                                className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${isInPlaylist ? 'opacity-50 cursor-not-allowed' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
-                                            >
-                                                <span className="text-sm font-medium truncate pr-2">{pl.name}</span>
-                                                {isInPlaylist && <Check size={16} className="text-accent-color shrink-0" />}
-                                            </button>
-                                        );
-                                    })}
+                        {showPlaylists && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowPlaylists(false)}></div>
+                                <div className="absolute bottom-full right-0 mb-4 w-56 bg-sheet-bg backdrop-blur-2xl border border-border-color rounded-2xl shadow-xl z-50 flex flex-col max-h-64 animate-in fade-in slide-in-from-bottom-2">
+                                    <div className="px-4 py-3 border-b border-border-color/50 font-bold text-sm">Add to Playlist</div>
+                                    <div className="overflow-y-auto no-scrollbar py-2">
+                                        {playlists.map(pl => {
+                                            const isInPlaylist = pl.tracks.some(t => t.video_id === currentTrack?.video_id);
+                                            return (
+                                                <button
+                                                    key={pl.id}
+                                                    onClick={() => {
+                                                        if (!isInPlaylist && currentTrack) {
+                                                            addToPlaylist(pl.id, currentTrack);
+                                                            setShowPlaylists(false);
+                                                        }
+                                                    }}
+                                                    disabled={isInPlaylist}
+                                                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${isInPlaylist ? 'opacity-50 cursor-not-allowed' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                                                >
+                                                    <span className="text-sm font-medium truncate pr-2">{pl.name}</span>
+                                                    {isInPlaylist && <Check size={16} className="text-accent-color shrink-0" />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <button
+                                        onClick={() => { setCurrentPage('playlists'); setShowPlaylists(false); }}
+                                        className="w-full text-center px-4 py-3 text-sm font-semibold text-accent-color border-t border-border-color/50 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                    >
+                                        Manage Playlists
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => { setCurrentPage('playlists'); setShowPlaylists(false); }}
-                                    className="w-full text-center px-4 py-3 text-sm font-semibold text-accent-color border-t border-border-color/50 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                                >
-                                    Manage Playlists
-                                </button>
-                            </div>
-                        </>
-                    )}
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
 

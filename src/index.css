@@ -4,19 +4,14 @@
 
 @layer base {
   :root {
-    --bg-primary: #e0f2fe;
-    /* light blue */
-    --text-primary: #171717;
-    /* Dark text */
-    --text-muted: #475569;
-    --accent-color: #22c55e;
-    /* green */
-    --sheet-bg: rgba(255, 255, 255, 0.85);
-    --border-color: rgba(0, 0, 0, 0.1);
-    --color-brand-light: #e0f2fe;
-    /* light blue */
+    --bg-primary: #ffffff;
+    --text-primary: #4c1d95; /* Deep Purple */
+    --text-muted: #6d28d9; /* Medium Purple */
+    --accent-color: #d97706; /* Gold/Amber */
+    --sheet-bg: rgba(255, 255, 255, 0.9);
+    --border-color: rgba(76, 29, 149, 0.1);
+    --color-brand-light: #ffffff;
     --color-brand-dark: #121212;
-    /* deep grey/black */
   }
 
   /* Dark theme */

@@ -4,31 +4,19 @@ import { usePlayerStore } from '../store/usePlayerStore';
 
 export const TopBar: React.FC = () => {
     const [query, setQuery] = useState('');
-    const [isDark, setIsDark] = useState(true); // Default to dark mode
+    const isDark = usePlayerStore(state => state.isDark);
+    const toggleTheme = usePlayerStore(state => state.toggleTheme);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const searchTracks = usePlayerStore(state => state.searchTracks);
-
     const userName = usePlayerStore(state => state.userName);
 
     useEffect(() => {
-        // Enforce dark mode on mount
-        document.documentElement.classList.add('dark');
-
         const onFullscreenChange = () => {
             setIsFullscreen(!!document.fullscreenElement);
         };
         document.addEventListener('fullscreenchange', onFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
     }, []);
-
-    const toggleTheme = () => {
-        setIsDark(!isDark);
-        if (!isDark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-    };
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
