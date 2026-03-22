@@ -1,33 +1,54 @@
-# AudioArc: Modern Real-time Music Streaming
+# AudioArc - Music Player
 
-AudioArc is a premium, full-stack music streaming application designed for a seamless, high-performance user experience. It leverages a modern tech stack to provide instant search and "bulletproof" streaming via a Cloudflare Worker bridge.
+AudioArc is a music streaming application that uses a local FastAPI backend to fetch audio directly from YouTube. This approach ensures high reliability and performance by leveraging your local internet connection for media extraction.
 
-## 🚀 Project Architecture
+## Screenshots
 
-The project is structured into three main components:
-1.  **Render Backend (`/backend`)**: A FastAPI service for high-speed YouTube search and metadata extraction.
-2.  **Cloudflare Worker (`worker.js`)**: A streaming proxy that fetches audio bytes from YouTube's global network, bypassing data center IP blocks.
-3.  **React Frontend (Root)**: A sleek, modern UI that combines metadata from Render with audio streams from Cloudflare.
+![Dark Mode](screenshots/dark_mode.png)
+![Light Mode](screenshots/light_mode.png)
 
-## 🛠️ Features
-- **"Bulletproof" Streaming**: Uses Cloudflare Workers to bypass YouTube IP blocks on cloud providers like Render.
-- **Instant Search**: Optimized `yt-dlp` search with persistent cookie handling.
-- **Dynamic Player**: Interactive vinyl record animation synced with playback.
-- **Playlist Management**: Local persistence for Liked Songs and custom playlists.
-- **Zero-Latency Feel**: High-speed chunked streaming for instant music playback.
+## Core Features
 
-## 🛠️ Getting Started
+- **Local Backend Bridge**: Uses a FastAPI server to provide direct, high-speed audio streams.
+- **Enhanced Seeking**: Full support for HTTP Range requests for smooth playback scrubbing.
+- **Auto-Play**: Automatically plays the next song in the queue or search results.
+- **Persistent Theme**: Light and Dark modes that stay active across page navigation.
+- **Modern Interface**: Built with React 19 for a fast and fluid user experience.
 
-### 1. Cloudflare Worker Setup (Required)
-This is essential for playback to work on a deployed site.
-- Deploy the code in `backend/worker.js` to a new Cloudflare Worker.
-- Add your Worker URL to `src/config.ts`.
-- See `deployment_guide.md` for the step-by-step guide.
+## Tech Stack
 
-### 2. Running Locally
+- **Frontend**: React 19, Vite, Tailwind CSS, Zustand, Framer Motion
+- **Backend**: Python 3.10+, FastAPI, yt-dlp, httpx
+- **Requirement**: FFmpeg is required for optimal audio handling.
+
+## Installation and Setup
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/ksrahul23/AudioArc-Music-Player
+cd AudioArc-Music-Player
+npm install
+```
+
+### 2. Configure the Backend
+```bash
+cd backend
+python -m venv venv
+.\venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+pip install -r requirements.txt
+```
+
+### 3. Run the Application
+From the root directory, run:
 ```bash
 npm run dev:all
 ```
+The application will be available at `http://localhost:5173`.
 
-## ✍️ Author
-**Rahul Kumar**
+## How it Works
+
+AudioArc bypasses common streaming restrictions by running a local "bridge" server. When you search for or play a song, the React frontend requests metadata and stream URLs from the local FastAPI backend. The backend uses `yt-dlp` to fetch the direct media link, which is then redirected to your browser for native playback.
+
+---
+Maintained by Rahul Kumar
